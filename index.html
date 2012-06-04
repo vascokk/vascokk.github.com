@@ -703,7 +703,7 @@ What we need to do is just to put the start() snippet from the above in the init
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
 <span class='line-number'>5</span>
-</pre></td><td class='code'><pre><code class='erlang'><span class='line'>     <span class="nv">DiaServer</span> <span class="o">=</span> <span class="p">{</span><span class="n">diaserver</span><span class="p">,{</span><span class="n">server</span><span class="p">,</span><span class="n">start_link</span><span class="p">,[]},</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'>     <span class="nv">DiaServer</span> <span class="o">=</span> <span class="p">{</span><span class="n">diaserver</span><span class="p">,{</span><span class="n">diameter_srv</span><span class="p">,</span><span class="n">start_link</span><span class="p">,[]},</span>
 </span><span class='line'>                 <span class="n">permanent</span><span class="p">,</span>
 </span><span class='line'>                 <span class="mi">5000</span><span class="p">,</span>
 </span><span class='line'>                 <span class="n">worker</span><span class="p">,</span>
@@ -848,7 +848,7 @@ What we need to do is just to put the start() snippet from the above in the init
 
 <p>Full reltool.config should be similar to:</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<figure class='code'><figcaption><span>reltool.config</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>

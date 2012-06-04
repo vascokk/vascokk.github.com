@@ -4,7 +4,7 @@
   <title><![CDATA[Category: rebar | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/rebar/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-06-04T22:52:37+01:00</updated>
+  <updated>2012-06-04T23:29:44+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[V.K.]]></name>
@@ -392,7 +392,7 @@ init(State) -></p>
 
 <p>``` erlang server supervisor's ChildSpec</p>
 
-<pre><code>     DiaServer = {diaserver,{server,start_link,[]},
+<pre><code>     DiaServer = {diaserver,{diameter_srv,start_link,[]},
                  permanent,
                  5000,
                  worker,
@@ -498,7 +498,7 @@ Writing files/start_erl.cmd
 
 <p>Full reltool.config should be similar to:</p>
 
-<p>```
+<p>``` bash reltool.config
 {sys, [</p>
 
 <pre><code>   {lib_dirs, ["../apps","../apps/diaserver"]},
