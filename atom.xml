@@ -4,7 +4,7 @@
   <title><![CDATA[Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-06-04T22:34:29+01:00</updated>
+  <updated>2012-06-04T22:51:20+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[V.K.]]></name>
@@ -79,7 +79,7 @@
 <ul>
 <li>Service - the service will usually implement a given Diameter Application.</li>
 <li>?DIAMETER_APP_ID_COMMON and ?DIAMETER_DICT_COMMON are defined in diameter.hrl</li>
-<li>diameter_cb (line 10) will be our diameter callback module (implementation of diameter_app)</li>
+<li>server_cb (line 10) will be our diameter callback module (implementation of diameter_app)</li>
 </ul>
 
 
