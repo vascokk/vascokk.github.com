@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Erlang | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/erlang/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-06-04T20:50:24+01:00</updated>
+  <updated>2012-06-04T21:01:28+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[V.K.]]></name>
@@ -112,11 +112,11 @@ handle_request(#diameter_packet{msg = Req, errors = []}, <em>SvcName, {</em>, Ca
 
 <h2>Using rebar as a build tool</h2>
 
-<p>I am going to use <a href="https://github.com/basho/rebar">Basho's rebar</a> to build my application. The project will contain at least two separately deployable applications - Diameter server and Aggregation module. I'll put them in separate app directories under my project's root. Let's see how to use rebar to create the Diameter application.</p>
+<p>I am going to use <a href="https://github.com/basho/rebar">Basho's rebar</a> to build my application. The project will contain at least two separately deployable applications - Diameter server and Aggregation module. I'll put them in separate app directories under my project's root.</p>
 
-<p>First create .../apps/diaserver directory under your project dir.<br/>
-Next copy rebar executable in "diaserver" directory.
-Now, let's create a project structure for our application. For this, you are going to need a template project. There are many in github. I'll use templates generously provided by <a href="https://github.com/mbbx6spp/rebar-templates">Susan Potter</a>. Just clone the repository in your ~/.rebar/templates directory. Then do:</p>
+<p>First, create .../apps/diaserver directory under your project dir and then, copy rebar executable in "diaserver" directory.</p>
+
+<p>Now, let's create the project structure for our application. For this, we will need a project template. There are many in github. I'll use the templates generously provided by <a href="https://github.com/mbbx6spp/rebar-templates">Susan Potter</a>. Just clone the repository in your ~/.rebar/templates directory, then do:</p>
 
 <p>``` bash Create erlang project
 .../apps/diaserver $ ./rebar create template=project
