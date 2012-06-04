@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Rebar | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/rebar/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-06-04T22:18:19+01:00</updated>
+  <updated>2012-06-04T22:34:29+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[V.K.]]></name>
@@ -61,7 +61,7 @@ start() -></p>
 
 <p>```</p>
 
-<p>Few things to note here:</p>
+<p>Few things to be mentioned here:</p>
 
 <ul>
 <li>Service - the service will usually implement a given Diameter Application.</li>
