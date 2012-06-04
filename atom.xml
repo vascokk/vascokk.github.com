@@ -1,136 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
 
-<!DOCTYPE html>
-<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
-<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
-<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
-<head>
-  <meta charset="utf-8">
-  <title>Reinventing The Wheel</title>
-  <meta name="author" content="V.K.">
-
-  
-  <meta name="description" content="Diameter Basics The Diameter protocol is defined by RFC 3588, and defines the minimum requirements for an AAA protocol. The best way to build up some &hellip;">
-  
-
-  <!-- http://t.co/dKP3o1e -->
-  <meta name="HandheldFriendly" content="True">
-  <meta name="MobileOptimized" content="320">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  
-  <link rel="canonical" href="http://vascokk.github.com">
-  <link href="/favicon.png" rel="icon">
-  <link href="/stylesheets/bootstrap/bootstrap.css" media="screen, projection" rel="stylesheet" type="text/css">
-  <link href="/stylesheets/bootstrap/responsive.css" media="screen, projection" rel="stylesheet" type="text/css">
-  <link href="/stylesheets/syntax/syntax.css" media="screen, projection" rel="stylesheet" type="text/css">
-  <style type="text/css">
-    body {
-      padding-top: 60px;
-      padding-bottom: 40px;
-    }
-    h1 {
-      margin-bottom: 15px;
-    }
-    img {
-      max-width: 100%;
-    }
-    .sharing, .meta {
-      margin: 20px 0px 20px 0px;
-    }
-    .pager {
-      margin: 20px 0px 5px 0px;
-    }
-    .page-footer p {
-      text-align: center;
-    }
-  </style>
-  <script src="/javascripts/modernizr-2.0.js"></script>
-  <script src="/javascripts/ender.js"></script>
-  <script src="/javascripts/octopress.js" type="text/javascript"></script>
-  <link href="/atom.xml" rel="alternate" title="Reinventing The Wheel" type="application/atom+xml">
-  
-  
-  <script type="text/javascript">
-    var _gaq = _gaq || [];
-    _gaq.push(['_setAccount', 'UA-2366459']);
-    _gaq.push(['_trackPageview']);
-
-    (function() {
-      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-    })();
-  </script>
-
-
-</head>
-
-<body   >
-  <nav role="navigation"><div class="navbar navbar-fixed-top">
-  <div class="navbar-inner">
-    <div class="container">
-
-      <a class="brand" href="/">Reinventing The Wheel</a>
-
-      <div class="nav-collapse">
-        <ul class="nav">
-  <li><a href="/">Blog</a></li>
-  <li><a href="/blog/archives">Archives</a></li>
-</ul>
-
-      </div>
-
-      <ul class="nav pull-right" data-subscription="rss">
-        <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
-        
-      </ul>
-
-        
-      <form class="pull-right navbar-search" action="http://google.com/search" method="get">
-        <fieldset role="search">
-          <input type="hidden" name="q" value="site:vascokk.github.com" />
-          <input class="search-query" type="text" name="q" results="0" placeholder="Search"/>
-        </fieldset>
-      </form>
-        
-    </div>
-  </div>
-</div>
-</nav>
-  <div class="container">
-    <div class="row-fluid">
-      <div class="span9">
-  
-  
-  
-    <article>
-      
-  <header class="page-header">
+  <title><![CDATA[Reinventing The Wheel]]></title>
+  <link href="http://vascokk.github.com/atom.xml" rel="self"/>
+  <link href="http://vascokk.github.com/"/>
+  <updated>2012-06-04T20:50:24+01:00</updated>
+  <id>http://vascokk.github.com/</id>
+  <author>
+    <name><![CDATA[V.K.]]></name>
     
-      <h1 class="entry-title"><a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang Real Time Server - Part 1 - Diameter Server</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
 
   
-
-
-<time datetime="2012-05-13T18:32:00+01:00" pubdate data-updated="true">May 13<span>th</span>, 2012</time>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><h2>Diameter Basics</h2>
+  <entry>
+    <title type="html"><![CDATA[Erlang Real Time Server - Part 1 - Diameter Server]]></title>
+    <link href="http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/"/>
+    <updated>2012-05-13T18:32:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server</id>
+    <content type="html"><![CDATA[<h2>Diameter Basics</h2>
 
 <p>The <a href="http://en.wikipedia.org/wiki/Diameter_(protocol)">Diameter</a> protocol is defined by <a href="http://tools.ietf.org/html/rfc3588">RFC 3588</a>, and defines the minimum requirements for an AAA protocol. The best way to build up some knowledge in Diameter is to read the RFC first. At the end of the Wikipedia article there are also a bunch of links to good introductory articles. Anyway, few very basic points:</p>
 
@@ -1050,42 +938,15 @@ What we need to do is just to put the start() snippet from the above in the init
 <p>You can find the source code in github: <a href="https://github.com/vascokk/diameter-test">https://github.com/vascokk/diameter-test</a></p>
 
 <p>In the next article I&#8217;ll start with the implementation of the Aggregation module. See ya!</p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  
-    <article>
-      
-  <header class="page-header">
-    
-      <h1 class="entry-title"><a href="/blog/2012/05/10/the-first-one/">The First One</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-05-10T23:00:00+01:00" pubdate data-updated="true">May 10<span>th</span>, 2012</time>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><h2>A Word From The Author</h2>
+  <entry>
+    <title type="html"><![CDATA[The first one]]></title>
+    <link href="http://vascokk.github.com/blog/2012/05/10/the-first-one/"/>
+    <updated>2012-05-10T23:00:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/05/10/the-first-one</id>
+    <content type="html"><![CDATA[<h2>A Word From The Author</h2>
 
 <p>Hello all!</p>
 
@@ -1115,112 +976,7 @@ What we need to do is just to put the start() snippet from the above in the init
 <p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert&#8217;s <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, as my expirience in Erlang, Diameter and Riak is very small, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
 
 <p>Now, let&#8217;s go to the first part of our <a href="http://localhost:4000/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang RTS project</a></p>
-</div>
+]]></content>
+  </entry>
   
-  
-
-
-    </article>
-  
-  <ul class="pager">
-    
-    <li><a href="/blog/archives">Blog Archives</a></li>
-    
-  </ul>
-</div>
-<aside class="sidebar-nav span3">
-  
-    <section class="well">
-  <ul id="recent_posts" class="nav nav-list">
-    <li class="nav-header">Recent Posts</li>
-    
-      <li class="post">
-        <a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang Real Time Server - Part 1 - Diameter Server</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2012/05/10/the-first-one/">The first one</a>
-      </li>
-    
-  </ul>
-</section>
-
-
-<section class="well">
-  <ul id="tweets" class="nav">
-    <li class="nav-header">Latest Tweets</li>
-    <li class="loading">Status updating&#8230;</li>
-  </ul>
-  <script type="text/javascript">
-    $.domReady(function(){
-      getTwitterFeed("vasco_kk", 4, false);
-    });
-  </script>
-  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
-  
-    <a href="http://twitter.com/vasco_kk" class="twitter-follow-button" data-show-count="false">Follow @vasco_kk</a>
-  
-</section>
-
-
-
-
-
-  
-</aside>
-
-    </div>
-  </div>
-  <footer role="contentinfo" class="page-footer"><hr>
-<p>
-  Copyright &copy; 2012 - V.K. -
-  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
-</p>
-
-</footer>
-  
-
-<script type="text/javascript">
-      var disqus_shortname = 'vas_io';
-      
-        
-        var disqus_script = 'count.js';
-      
-    (function () {
-      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
-      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
-      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
-    }());
-</script>
-
-
-
-<div id="fb-root"></div>
-<script>(function(d, s, id) {
-  var js, fjs = d.getElementsByTagName(s)[0];
-  if (d.getElementById(id)) {return;}
-  js = d.createElement(s); js.id = id;
-  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
-  fjs.parentNode.insertBefore(js, fjs);
-}(document, 'script', 'facebook-jssdk'));</script>
-
-
-
-
-
-  <script type="text/javascript">
-    (function(){
-      var twitterWidgets = document.createElement('script');
-      twitterWidgets.type = 'text/javascript';
-      twitterWidgets.async = true;
-      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
-      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
-    })();
-  </script>
-
-
-
-
-
-</body>
-</html>
+</feed>
