@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: Rebar | Reinventing The Wheel]]></title>
+  <title><![CDATA[Category: rebar | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/rebar/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-06-04T22:51:20+01:00</updated>
+  <updated>2012-06-04T22:52:37+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[V.K.]]></name>
