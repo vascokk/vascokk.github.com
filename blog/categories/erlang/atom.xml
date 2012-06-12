@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Erlang | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/erlang/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-06-04T23:29:44+01:00</updated>
+  <updated>2012-06-12T18:11:07+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[V.K.]]></name>
@@ -634,7 +634,7 @@ ok
 
 <p>Well, at this moment we can handle just one command, but implementing the rest of the "Diameter Base Application" spec shouldn't be much of a problem with everything we've done so far.</p>
 
-<p>You can find the source code in github: <a href="https://github.com/vascokk/diameter-test">https://github.com/vascokk/diameter-test</a></p>
+<p>You can find the source code in github: <a href="https://github.com/vascokk/diameter-test/tree/master/erlang-rts-part-1">https://github.com/vascokk/diameter-test</a></p>
 
 <p>In the next article I'll start with the implementation of the Aggregation module. See ya!</p>
 ]]></content>
