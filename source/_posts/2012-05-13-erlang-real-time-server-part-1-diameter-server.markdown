@@ -554,3 +554,9 @@ Well, at this moment we can handle just one command, but implementing the rest o
 You can find the source code in github: [https://github.com/vascokk/diameter-test](https://github.com/vascokk/diameter-test/tree/master/erlang-rts-part-1)
 
 In the next article I'll start with the implementation of the Aggregation module. See ya!
+
+Credits
+----------------------------------
+Susan Potter for the rebar [templates](https://github.com/mbbx6spp/rebar-templates)
+
+Frederic Trottier-Hebert for the amazing ["Learn You Some Erlang"](http://learnyousomeerlang.com/) book
