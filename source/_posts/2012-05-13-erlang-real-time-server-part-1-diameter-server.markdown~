@@ -1,0 +1,20 @@
+---
+layout: post
+title: "Erlang Real Time Server - Part 1 - Diameter Server"
+date: 2012-05-13 18:32
+comments: true
+categories: Erlang, Diameter 
+---
+
+Diameter Basics
+---------------
+
+The [Diameter](http://en.wikipedia.org/wiki/Diameter\_(protocol\)) protocol is defined by [RFC 3588](http://tools.ietf.org/html/rfc3588), and defines the minimum requirements for an AAA protocol. The best way to build up some knowledge in Diameter is to read the RFC first. At the end of the Wikipedia article there are also a bunch of links to good introductory articles. Anyway, few very basic points:
+
+* There are several types of Diameter nodes - Client, Server, Relay, Proxy (we will focus only on the first two)
+* Diameter nodes communicate with "commands";
+* Clients send a given command as "Request" and the server replays with the same command as "Answer", e.g. Accounting-Request and Accounting-Answer. Both will have the same command code (271), but in the case of the Client the 'Command Flags' 'R' bit will be set;
+* Each command has a predefined set of attributes. If there is a need of additional attributes, they can be specified as "Vendor Specific Attribute Value Pairs" (or AVPs for short);  
+* RFC 3588 defines the basic set of AAA commands. Additional commands are defined in Diameter extensions called "Applications". Don't confuse them with the usual software applications (blame the Diameter creators for the poor choice of word here :), they are just declarative specifications.
+
+

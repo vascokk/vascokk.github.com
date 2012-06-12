@@ -1,0 +1,36 @@
+---
+layout: post
+title: "The first one"
+date: 2012-05-10 23:00
+comments: true
+categories: [Erlang, Diameter]
+---
+
+A Word From The Author
+------------------------
+
+Hello all! 
+
+This is my second attempt to write a blog. This time my intention is a 'working blog' about the new stuff I'm learning in programming, mainly because trying to explain something is the best way to learn it. So, it will be just a learning tool. If someone else finds it useful - that would be a bonus. 
+
+
+The Idea 
+---------------
+
+What I have in mind is a 'pet project' using my new passion - functional programing in Erlang. I also like Scala, but I have much less experience in it (although, I have to admit that my Erlang 'experience' is just a few tutorial pages bigger). 
+
+The project will be an implementation of a very rudimental telecom "Real Time Server" (RTS). "WTF is a RTS?" - you are asking. The short answer is: This is a piece of software, usually part of a telecom billing system, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the system which grants you the access to and charges you for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc. 
+  
+The basic parts of a usual RTS are: 
+
+* AAA protocol server (in our case a Diameter server), which will receive the AAA requests
+* A module, I will name it "Aggregation module", which purpose is to calculate the answers.
+
+The AAA protocol is an important part. If you have ever heard about 'RADIUS' - that's it. It is a protocol widely used in ISPs and VoIP operators. What I intend to use, however, is the RADIUS successor - Diameter. Partially because the standard Erlang distribution has a Diameter library and partially, because I want to learn Diameter. 
+
+
+The second part, which is even more interesting - the Aggregation - is the place where all the calculations will be done. For example - if you want to watch a film on demand or make a voice/video call the system has to check whether you have enough money on your balance and will grand or not access to the service - that's the 'authorization' part. After the end of the call it will calculate the amount to deduct from your balance, depending on the time you spent talking and the destination (local or international call, etc.). That's the 'accounting' part. Since there can be between hunderds and millions (if you are someone like AT&T :-)  ) of subscribers, simultaneously using your services, the system has to be scalable. By 'scalable' I mean - painlessly adding a new Aggregation module with a minimum effort. It looks like Riak would fit this purpose perfectly.
+
+A note for the potential readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert's [Learn You Some Erlang](http://learnyousomeerlang.com). I myself have no prior experience in neither of Erlang, Diameter or Riak, so, any suggestions (even just to correct my English :)) ) are very welcome.
+
+Now, let's go to the first part of our Telco Billing RTS
