@@ -24,3 +24,9 @@ aggregation_ring_event_handler.erl
 aggregation_sup.erl
 aggregation_vnode.erl
 ```
+
+
+Credits
+---------
+
+Ryan Zezeski for the Riak [tutorial](https://github.com/rzezeski/try-try-try) and rebar [templates](https://github.com/rzezeski/rebar_riak_core) 
