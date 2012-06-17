@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "erlang-real-time-server-part-2-aggregation"
+title: "Erlang-real-time-server-part-2-aggregation"
 date: 2012-06-06 18:39
 comments: true
 categories: Erang Diameter Riak rebar
@@ -17,20 +17,20 @@ In a schematic view, the RTS will look like this:
 ![](/images/rts-part-2/RTS1.png)
 
 
-The idea here is: every Diameter request will be turned into a Riak command by the Diameter Server. The command then will be sent to the Aggregation, which as a computational intensive module will run on Riak cluster. 
+The idea here is: every Diameter request will be turned by the Diameter Server into a Riak command. The command then will be sent to the Aggregation, which as computational intensive module will run on a Riak cluster. 
 
 Setting up a Riak cluster (plus a very lame introduction to Riak)
 ----------------------------
 
-Setting up a cluster could be kind of tedious. Fortunately, there are always some giant's shoulders you can step on*. In this case I will use the Ryan Zezeski's rebar [templates](https://github.com/rzezeski/rebar_riak_core)
+Setting up a cluster could be a tedious job. Fortunately, there are always some giant's shoulders you can step on*. In this case I will use the Ryan Zezeski's RiakCore rebar [templates](https://github.com/rzezeski/rebar_riak_core)
 
 Once you clone the templates repository from GitHub, make a new erlang application directory in _apps_ and run _rebar_ from it:
 
 
 ``` bash
-<project_root>$ ./mkdir apps/aggregation
-<project_root>$ cd apps/aggregation 
-<project_root>/apps/aggregation$ ../../rebar -f create template=riak_core_multinode appid=aggregation nodeid=aggregation
+<project_root> $ ./mkdir apps/aggregation
+<project_root> $ cd apps/aggregation 
+<project_root>/apps/aggregation $ ../../rebar -f create template=riak_core_multinode appid=aggregation nodeid=aggregation
 ```
 
 With this run correctly, you should have the following files in the application's _src_ directory:
