@@ -68,3 +68,7 @@ Credits
 ---------
 
 Ryan Zezeski for the Riak [tutorial](https://github.com/rzezeski/try-try-try) and rebar [templates](https://github.com/rzezeski/rebar_riak_core) 
+
+References
+------------
+(*) ["Standing on the shoulders of giants"](http://en.wikipedia.org/wiki/Standing_on_the_shoulders_of_giants)
