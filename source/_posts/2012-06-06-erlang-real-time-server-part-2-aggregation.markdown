@@ -22,9 +22,9 @@ The idea here is: every Diameter request will be turned into a Riak command by t
 Setting up a Riak cluster
 ----------------------------
 
-Setting up a cluster could be kind of tedious. Fortunately, there are always some giant's shoulders you can step on(*). In this case I will use the  Ryan Zezeski's rebar [templates](https://github.com/rzezeski/rebar_riak_core)
+Setting up a cluster could be kind of tedious. Fortunately, there are always some giant's shoulders you can step on*. In this case I will use the Ryan Zezeski's rebar [templates](https://github.com/rzezeski/rebar_riak_core)
 
-Once you clone the templates repository from git hub, what is left to do is:
+Once you clone the templates repository from GitHub, make a new erlang application directory in _apps_ and run _rebar_ from it:
 
 
 ``` bash
@@ -33,7 +33,7 @@ Once you clone the templates repository from git hub, what is left to do is:
 <project_root>/apps/aggregation$ ../../rebar -f create template=riak_core_multinode appid=aggregation nodeid=aggregation
 ```
 
-and you should have the following files in the _src_ directory:
+With this run correctly, you should have the following files in the application's _src_ directory:
 
 ``` bash
 aggregation_app.erl
@@ -66,8 +66,8 @@ As you see in the last bullet - the number of partitions is constant (it is set 
 
 Credits
 ---------
-
 Ryan Zezeski for the Riak [tutorial](https://github.com/rzezeski/try-try-try) and rebar [templates](https://github.com/rzezeski/rebar_riak_core) 
+
 
 References
 ------------
