@@ -20,9 +20,9 @@ In a schematic view, the RTS will look like this:
 The idea here is: every Diameter request will be turned by the Diameter Server into a Riak command. The command then will be sent to the Aggregation, which as computational intensive module will run on a Riak cluster. 
 
 Setting up a Riak cluster (plus a very lame introduction to Riak)
-----------------------------
+-------------------------------------------------------------------
 
-Setting up a cluster could be a tedious job. Fortunately, there are always some giant's shoulders you can step on*. In this case I will use the Ryan Zezeski's RiakCore rebar [templates](https://github.com/rzezeski/rebar_riak_core)
+Setting up a cluster could be a tedious job. Fortunately, there are always some giant's shoulders you can step on\*. In this case I will use the Ryan Zezeski's RiakCore rebar [templates](https://github.com/rzezeski/rebar_riak_core)
 
 Once you clone the templates repository from GitHub, make a new erlang application directory in _apps_ and run _rebar_ from it:
 
@@ -64,6 +64,61 @@ I'll not go further into details, as [wiki.basho.com](http://wiki.basho.com) is 
 As you see in the last bullet above - the number of partitions is constant (it is set in the app.config's _ring_creation_size_ parameter). Default number is 64 and there is no formal way to calculate it according our needs. It would be more or less empirically set. According to the Riak's wiki - for a mid-sized cluster of 8 to 16 nodes, the number should be between 128 and 512 partitions (always a power of 2), but this is definitely not "set on stone". Let's assume that we have set the optimal ring size already. What we will do, when we need more power, is just: run another node and join it to a randomly chosen node from the cluster (you can really pick any node, there is no "master"). The new node will automatically claim a certain number of partitions/vnodes, offloading the other hosts. Due to the "consistent hashing" (more on this in some other article) the relocation of the vnodes will be transparent to the application which sends commands to the cluster, as all the keys' hash values are still on the same vnodes, even though some of the vnodes are now residing on a different phisical node. Charming, isn't it? Operational cost is minimized.  Under the hood, Riak will use "handoff" procedures, "Gossip" protocol and other magics to do the job.
 
 The bottom line is: Adding a new host to the cluster is dead simple. It will relocate a number of vnodes, not increase their number, so be careful when you plan the Ring size.
+
+
+
+generated rebar.conf:
+``` erlang
+%% -*- erlang -*-
+{sub_dirs, ["rel", "apps/aggregation"]}.
+{cover_enabled, true}.
+{erl_opts, [debug_info, warnings_as_errors]}.
+{edoc_opts, [{dir, "../../doc"}]}.
+{deps, [{riak_core, "HEAD",
+         {git, "https://github.com/basho/riak_core", {"HEAD"}}}
+       ]}.
+```
+
+changed rebar.conf:
+
+``` erlang
+%% -*- erlang -*-
+{sub_dirs, ["rel", "apps/aggregation"]}.
+{cover_enabled, true}.
+{erl_opts, [debug_info, warnings_as_errors]}.
+{edoc_opts, [{dir, "../../doc"}]}.
+{deps, [{riak_core, "1.1.2",
+         {git, "https://github.com/basho/riak_core", {"1.1.2"}}}
+       ]}.
+{lib_dirs, ["apps", "deps"]}.
+```
+
+
+
+``` bash
+<project_root>/erlang-rts-part-2 $ ./rebar compile
+==> lager (compile)
+==> poolboy (compile)
+==> protobuffs (compile)
+==> basho_stats (compile)
+==> riak_sysmon (compile)
+==> mochiweb (compile)
+==> webmachine (compile)
+==> riak_core (compile)
+==> rel (compile)
+==> aggregation (compile)
+Compiled src/aggregation_sup.erl
+Compiled src/aggregation_node_event_handler.erl
+Compiled src/aggregation_app.erl
+Compiled src/aggregation_console.erl
+Compiled src/aggregation.erl
+Compiled src/aggregation_vnode.erl
+Compiled src/aggregation_ring_event_handler.erl
+==> erlang-rts-part-2 (compile)
+
+```
+
+
 
 
 Credits
