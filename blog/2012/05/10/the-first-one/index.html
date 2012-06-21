@@ -140,26 +140,6 @@
 
 
 <p>So, for me it will be just a learning tool. If someone else finds it useful - that would be a bonus.</p>
-
-<p>What I am planning to do is a &#8216;pet project&#8217; utilising my new passion - functional programing in Erlang. In this project I&#8217;ll sketch some ideas for a telecom &#8220;Online Charging System&#8221;(OCS). I have no intention to implement a real OCS as defined in the 3GPP specifications. It will be just a small part of what is more popular in non-3GPP world as a &#8220;Real Time Server&#8221; (RTS).</p>
-
-<p>&#8220;WTF is a RTS?&#8221; - you are asking. Well, when it coms to the Billing System domain, this is a piece of software, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the part of the system which grants you access to and charges for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc.</p>
-
-<p>The basic parts of the usual RTS are:</p>
-
-<ul>
-<li>AAA protocol server, which will receive the AAA requests.</li>
-<li>A module, I will call it &#8220;Aggregation module&#8221;, which purpose is to calculate the answers (for those of you familiar with the 3GPP - it is somewat combined Account Balance Management Function (ABMF) and Rating Function (RF) ) .</li>
-</ul>
-
-
-<p>The AAA protocol is an important part. If you have ever heard about &#8216;RADIUS&#8217; - that&#8217;s it. It is a protocol widely used in ISPs and VoIP operators. What I am planning to use, however, is the RADIUS successor - Diameter. Partially, because the standard Erlang distribution has a Diameter library and partially, because I want to learn more about Diameter.</p>
-
-<p>The second part, which is even more interesting - the Aggregation - is the place where all the calculations will be done. For example - if you want to watch a film on demand or make a voice/video call the system has to check whether you have enough money on your balance and will grant or not access to the service - that&#8217;s the &#8216;authorization&#8217; part. After the end of the call it will calculate the amount to deduct from your balance, depending on the time you spent talking and the destination (local or international call, etc.). That&#8217;s the &#8216;accounting&#8217; part. Since there can be between hunderds and millions (if you are someone like AT&amp;T :-)  ) of subscribers, simultaneously using your services, the system has to be scalable. By &#8216;scalable&#8217; I mean - painlessly adding a new Aggregation module with a minimum effort. It looks like Riak would fit this purpose perfectly.</p>
-
-<p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert&#8217;s <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, as my expirience in Erlang, Diameter and Riak is relatively small, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
-
-<p>Now, let&#8217;s go to the first part of our <a href="http://vas.io/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang RTS project</a></p>
 </div>
 
 
@@ -218,8 +198,8 @@
       
       <li><a href="/blog/archives">Blog Archives</a></li>
       
-      <li class="next"><a class="basic-alignment right" href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/"
-        title="Next Post: Erlang Real Time Server - Part 1 - Diameter Server">Erlang Real Time Server - Part 1 - Diameter Server
+      <li class="next"><a class="basic-alignment right" href="/blog/2012/05/11/erlang-real-time-server-introduction/"
+        title="Next Post: Erlang Real Time Server - Introduction">Erlang Real Time Server - Introduction
         &raquo;</a></li>
       
     </ul>
@@ -234,6 +214,10 @@
     
       <li class="post">
         <a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang Real Time Server - Part 1 - Diameter Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/05/11/erlang-real-time-server-introduction/">Erlang Real Time Server - Introduction</a>
       </li>
     
       <li class="post">

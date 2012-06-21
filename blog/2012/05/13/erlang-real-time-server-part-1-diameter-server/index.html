@@ -149,7 +149,7 @@
 
 <p>I will not explain this part in details as it is better to take a look at the exelent example provided by the Erlang creators in the Diameter lib <a href="https://github.com/erlang/otp/tree/master/lib/diameter/examples/code">source</a>. Just a couple of important things:</p>
 
-<p>How to start the service</p>
+<p>How to start the service:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -301,7 +301,7 @@
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>The above are the files needed to make our applications of terms of Erlang/OTP framework. The real job (starting diameter server, receieving commands, etc) will be done by a gen_server module, created with the following command:</p>
+<p>The above are the &#8220;supplementary&#8221; files needed to create our application in terms of Erlang/OTP framework. The actual job (starting diameter server, receieving commands, etc) will be done by a gen_server module, created with the following command:</p>
 
 <figure class='code'><figcaption><span>Create gen_server module using template</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -313,7 +313,7 @@
 
 
 <p>This will create a file named diameter_srv.erl in the &#8230;apps/diaserver/src.
-Again, gen_server template here is a modified (read - renamed and changed the names inside the template) version of finapp.template you downloaded before.
+Again, gen_server template here is a modified (read: &#8220;renamed and the names inside the template changed&#8221;) version of finapp.template you git-cloned earlier.
 Here is what the file should look like:</p>
 
 <figure class='code'><figcaption><span>diameter_srv.erl</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
@@ -471,8 +471,8 @@ Here is what the file should look like:</p>
 
 <p></p>
 
-<p>Now, as we have the skeleton, we can start to flesh it out.
-What we need to do is just to put the start() snippet from the above in the init() function:</p>
+<p>Now, as we have the skeleton, we can start to flesh it out with our specific code.
+What we need to do is to put the start() snippet from the above in the init() function:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -520,7 +520,7 @@ What we need to do is just to put the start() snippet from the above in the init
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>and that&#8217;s pretty much it for the gen_server. It is of course a good idea to create a macros for the service options, as we will probably implement several Diameter Applications in this module, so, each one will need different name, svc and transport options. For simplicity&#8217;s sake, I&#8217;ll leave it as is for now.</p>
+<p>and that&#8217;s pretty much for the gen_server. It is of course a good idea to create a macros for the service options, as we will probably implement several Diameter Applications in this module, so, each one will need different name, svc and transport options. For simplicity&#8217;s sake, I&#8217;ll leave it as is for now.</p>
 
 <p>Why we bother at all with those gen_server behaviour, templates, etc? Fist we need a gen_server in order to comply with OTP application requirements and second - we can use this behaviour later to control our server.</p>
 
@@ -1113,8 +1113,8 @@ What we need to do is just to put the start() snippet from the above in the init
     <ul class="pager">
       
       <li class="previous"><a class="basic-alignment left"
-        href="/blog/2012/05/10/the-first-one/" title="Previous Post:
-        The first one">&laquo; The first one</a></li>
+        href="/blog/2012/05/11/erlang-real-time-server-introduction/" title="Previous Post:
+        Erlang Real Time Server - Introduction">&laquo; Erlang Real Time Server - Introduction</a></li>
       
       <li><a href="/blog/archives">Blog Archives</a></li>
       
@@ -1130,6 +1130,10 @@ What we need to do is just to put the start() snippet from the above in the init
     
       <li class="post">
         <a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang Real Time Server - Part 1 - Diameter Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/05/11/erlang-real-time-server-introduction/">Erlang Real Time Server - Introduction</a>
       </li>
     
       <li class="post">

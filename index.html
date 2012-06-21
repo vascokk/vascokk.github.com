@@ -151,7 +151,7 @@
 
 <p>I will not explain this part in details as it is better to take a look at the exelent example provided by the Erlang creators in the Diameter lib <a href="https://github.com/erlang/otp/tree/master/lib/diameter/examples/code">source</a>. Just a couple of important things:</p>
 
-<p>How to start the service</p>
+<p>How to start the service:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -303,7 +303,7 @@
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>The above are the files needed to make our applications of terms of Erlang/OTP framework. The real job (starting diameter server, receieving commands, etc) will be done by a gen_server module, created with the following command:</p>
+<p>The above are the &#8220;supplementary&#8221; files needed to create our application in terms of Erlang/OTP framework. The actual job (starting diameter server, receieving commands, etc) will be done by a gen_server module, created with the following command:</p>
 
 <figure class='code'><figcaption><span>Create gen_server module using template</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -315,7 +315,7 @@
 
 
 <p>This will create a file named diameter_srv.erl in the &#8230;apps/diaserver/src.
-Again, gen_server template here is a modified (read - renamed and changed the names inside the template) version of finapp.template you downloaded before.
+Again, gen_server template here is a modified (read: &#8220;renamed and the names inside the template changed&#8221;) version of finapp.template you git-cloned earlier.
 Here is what the file should look like:</p>
 
 <figure class='code'><figcaption><span>diameter_srv.erl</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
@@ -473,8 +473,8 @@ Here is what the file should look like:</p>
 
 <p></p>
 
-<p>Now, as we have the skeleton, we can start to flesh it out.
-What we need to do is just to put the start() snippet from the above in the init() function:</p>
+<p>Now, as we have the skeleton, we can start to flesh it out with our specific code.
+What we need to do is to put the start() snippet from the above in the init() function:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -522,7 +522,7 @@ What we need to do is just to put the start() snippet from the above in the init
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>and that&#8217;s pretty much it for the gen_server. It is of course a good idea to create a macros for the service options, as we will probably implement several Diameter Applications in this module, so, each one will need different name, svc and transport options. For simplicity&#8217;s sake, I&#8217;ll leave it as is for now.</p>
+<p>and that&#8217;s pretty much for the gen_server. It is of course a good idea to create a macros for the service options, as we will probably implement several Diameter Applications in this module, so, each one will need different name, svc and transport options. For simplicity&#8217;s sake, I&#8217;ll leave it as is for now.</p>
 
 <p>Why we bother at all with those gen_server behaviour, templates, etc? Fist we need a gen_server in order to comply with OTP application requirements and second - we can use this behaviour later to control our server.</p>
 
@@ -1070,6 +1070,64 @@ What we need to do is just to put the start() snippet from the above in the init
       
   <header class="page-header">
     
+      <h1 class="entry-title"><a href="/blog/2012/05/11/erlang-real-time-server-introduction/">Erlang Real Time Server - Introduction</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-05-11T19:53:00+01:00" pubdate data-updated="true">May 11<span>th</span>, 2012</time>
+        
+         | <a href="/blog/2012/05/11/erlang-real-time-server-introduction/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Erlang RTS - Introduction</p>
+
+<p>What I am planning to do is a &#8216;pet project&#8217; utilising my new passion - functional programing in Erlang. In this project I&#8217;ll sketch some ideas for a telecom &#8220;Online Charging System&#8221;(OCS). I have no intention to implement a real OCS as defined in the 3GPP specifications. It will be just a small part of what is more popular in non-3GPP world as a &#8220;Real Time Server&#8221; (RTS).</p>
+
+<p>&#8220;WTF is a RTS?&#8221; - you are asking. Well, when it comes to the Billing System domain, this is a piece of software, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the part of the system which grants you access to and charges for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc.</p>
+
+<p>The basic parts of the usual RTS are:</p>
+
+<ul>
+<li>AAA protocol server, which will receive the AAA requests.</li>
+<li>A module, I will call it &#8220;Aggregation module&#8221;, which purpose is to calculate the answers (for those of you familiar with the 3GPP - it is somewat combined Account Balance Management Function (ABMF) and Rating Function (RF) ) .</li>
+</ul>
+
+
+<p>The AAA protocol is an important part. If you have ever heard about &#8216;RADIUS&#8217; - that&#8217;s it. It is a protocol widely used in ISPs and VoIP operators. What I am planning to use, however, is the RADIUS successor - Diameter. Partially, because the standard Erlang distribution has a Diameter library and partially, because I want to learn more about Diameter.</p>
+
+<p>The second part, which is even more interesting - the Aggregation - is the place where all the calculations will be done. For example - if you want to watch a film on demand or make a voice/video call the system has to check whether you have enough money on your balance and will grant or not access to the service - that&#8217;s the &#8216;authorization&#8217; part. After the end of the call it will calculate the amount to deduct from your balance, depending on the time you spent talking and the destination (local or international call, etc.). That&#8217;s the &#8216;accounting&#8217; part. Since there can be between hunderds and millions (if you are someone like AT&amp;T :-)  ) of subscribers, simultaneously using your services, the system has to be scalable. By &#8216;scalable&#8217; I mean - painlessly adding a new Aggregation module with a minimum effort. It looks like Riak would fit this purpose perfectly.</p>
+
+<p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert&#8217;s <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, as my expirience in Erlang, Diameter and Riak is relatively small, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
+
+<p>Now, let&#8217;s go to the first part of our <a href="http://vas.io/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">&#8220;Erlang RTS&#8221; project</a></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header class="page-header">
+    
       <h1 class="entry-title"><a href="/blog/2012/05/10/the-first-one/">The First One</a></h1>
     
     
@@ -1105,26 +1163,6 @@ What we need to do is just to put the start() snippet from the above in the init
 
 
 <p>So, for me it will be just a learning tool. If someone else finds it useful - that would be a bonus.</p>
-
-<p>What I am planning to do is a &#8216;pet project&#8217; utilising my new passion - functional programing in Erlang. In this project I&#8217;ll sketch some ideas for a telecom &#8220;Online Charging System&#8221;(OCS). I have no intention to implement a real OCS as defined in the 3GPP specifications. It will be just a small part of what is more popular in non-3GPP world as a &#8220;Real Time Server&#8221; (RTS).</p>
-
-<p>&#8220;WTF is a RTS?&#8221; - you are asking. Well, when it coms to the Billing System domain, this is a piece of software, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the part of the system which grants you access to and charges for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc.</p>
-
-<p>The basic parts of the usual RTS are:</p>
-
-<ul>
-<li>AAA protocol server, which will receive the AAA requests.</li>
-<li>A module, I will call it &#8220;Aggregation module&#8221;, which purpose is to calculate the answers (for those of you familiar with the 3GPP - it is somewat combined Account Balance Management Function (ABMF) and Rating Function (RF) ) .</li>
-</ul>
-
-
-<p>The AAA protocol is an important part. If you have ever heard about &#8216;RADIUS&#8217; - that&#8217;s it. It is a protocol widely used in ISPs and VoIP operators. What I am planning to use, however, is the RADIUS successor - Diameter. Partially, because the standard Erlang distribution has a Diameter library and partially, because I want to learn more about Diameter.</p>
-
-<p>The second part, which is even more interesting - the Aggregation - is the place where all the calculations will be done. For example - if you want to watch a film on demand or make a voice/video call the system has to check whether you have enough money on your balance and will grant or not access to the service - that&#8217;s the &#8216;authorization&#8217; part. After the end of the call it will calculate the amount to deduct from your balance, depending on the time you spent talking and the destination (local or international call, etc.). That&#8217;s the &#8216;accounting&#8217; part. Since there can be between hunderds and millions (if you are someone like AT&amp;T :-)  ) of subscribers, simultaneously using your services, the system has to be scalable. By &#8216;scalable&#8217; I mean - painlessly adding a new Aggregation module with a minimum effort. It looks like Riak would fit this purpose perfectly.</p>
-
-<p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert&#8217;s <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, as my expirience in Erlang, Diameter and Riak is relatively small, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
-
-<p>Now, let&#8217;s go to the first part of our <a href="http://vas.io/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang RTS project</a></p>
 </div>
   
   
@@ -1146,6 +1184,10 @@ What we need to do is just to put the start() snippet from the above in the init
     
       <li class="post">
         <a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang Real Time Server - Part 1 - Diameter Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/05/11/erlang-real-time-server-introduction/">Erlang Real Time Server - Introduction</a>
       </li>
     
       <li class="post">
