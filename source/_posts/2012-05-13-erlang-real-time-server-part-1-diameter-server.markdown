@@ -23,7 +23,7 @@ Diameter in Erlang
 
 Among the other great things Erlang contains a Diameter library. This library has two important modules - diameter and diameter_app. With the help of the first one we can create a Diameter service, which receives and sends commands. The second one - diameter_app - is the callback module for the service started with the first. Please, note that I am using 'Diameter' to denote the protocol and 'diameter' for the Erlang module.
 
-I will not explain this part in details as it is better to take a look at the exelent example provided by the Erlang creators in the Diameter lib [source](https://github.com/erlang/otp/tree/master/lib/diameter/examples/code). Just a couple of important things:
+I will not explain this part in details as it is better to take a look at the exelent example provided by Erlang creators inside the Diameter lib [source](https://github.com/erlang/otp/tree/master/lib/diameter/examples/code). Just a couple of important things:
 
 How to start the service:
 
@@ -47,7 +47,7 @@ start() ->
 
 ```
 
-Few things to be mentioned here:
+There are few things to be mentioned here:
 
 - Service - the service will usually implement a given Diameter Application.
 - ?DIAMETER_APP_ID_COMMON and ?DIAMETER_DICT_COMMON are defined in diameter.hrl 

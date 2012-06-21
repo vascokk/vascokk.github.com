@@ -96,6 +96,7 @@ changed rebar.conf:
 {lib_dirs, ["apps", "deps"]}.
 ```
 
+and compile:
 
 
 ``` bash
