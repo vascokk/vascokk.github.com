@@ -121,20 +121,14 @@ Compiled src/aggregation_ring_event_handler.erl
 
 ```
 
-Tyeing up 
------------------------
-
-
-
-
 
 Create release nodes
 -----------------------
 
-cd _rel_
-mkdir aggregation
+At this moment _rel_ directory should contain the _aggregation_ release configuration file. Because we have 2 applications (_diaserver_ and _aggregation_) I'll put them in separate _rel_ subdirectories.
 
-move everithing in _aggregation_ directory, edit the second line of reltool.config to match the directory structure:
+First, create _aggregation_ sub-directory and move the content of _rel_ there. Next, edit the second line of reltool.config to match the directory structure:
+
 ``` bash
  {lib_dirs, ["../../apps/", "../../apps/aggregation/", "../../deps/"]},
 
@@ -146,7 +140,7 @@ Create the diaserver node (the same way as in Part1, only in different directory
 ``` bash
 mkdir diaserver
 cd diaserver
-/rel/diaserver $ ../../rebar create-node nodeid=diaserver
+rel/diaserver $ ../../rebar create-node nodeid=diaserver
 ==> diaserver (create-node)
 Writing reltool.config
 Writing files/erl
@@ -158,7 +152,81 @@ Writing files/diaserver.cmd
 Writing files/start_erl.cmd
 ```
 
-Edit reltool.config the in the way already described in Part1
+Edit reltool.config the in the way already described in Part1.
+
+Create 2 aggregation release nodes. They will work on different ports and we will be able to run them on the same phisical host. This way we will simulate a 2-host Riak cluster:
+
+``` bash
+erlang-rts-part-2/rel/aggregation $ ../../rebar generate target_dir=./dev/dev1 overlay_vars=vars/dev1.config appid=aggregation
+==> aggregation (generate)
+erlang-rts-part-2/rel/aggregation $ ../../rebar generate target_dir=./dev/dev2 overlay_vars=vars/dev2.config appid=aggregation
+==> aggregation (generate)
+
+```
+
+Now, let's test the Riak cluster. Open a terminal and start the first node:
+
+``` bash First console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev1/bin/aggregation console
+
+Exec: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/erts-5.8.4/bin/erlexec -boot /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/releases/1/aggregation -embedded -config /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/etc/app.config -args_file /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/etc/vm.args -- console
+Root: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1
+Erlang R14B03 (erts-5.8.4) [source] [rq:1] [async-threads:5] [hipe] [kernel-poll:true]
+
+
+=INFO REPORT==== 21-Jun-2012::21:44:19 ===
+    alarm_handler: {set,{{disk_almost_full,"/"},[]}}
+** Found 0 name clashes in code paths
+21:44:20.142 [info] Application lager started on node 'aggregation1@127.0.0.1'
+21:44:20.236 [warning] No ring file available.
+21:44:20.237 [info] Application riak_core started on node 'aggregation1@127.0.0.1'
+21:44:20.249 [info] Waiting for application aggregation to start (0 seconds).
+21:44:20.254 [info] Application aggregation started on node 'aggregation1@127.0.0.1'
+Eshell V5.8.4  (abort with ^G)
+(aggregation1@127.0.0.1)1> 21:44:20.351 [info] Wait complete for application aggregation (0 seconds)
+
+```
+
+We have the first node 'aggregation1@127.0.0.1' running.
+
+Open a second terminal window, start the second node and join it to the first one:
+
+``` bash Second console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation start
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation-admin join aggregation1@127.0.0.1
+
+Sent join request to aggregation1@127.0.0.1
+```
+
+Attach to the running second node and call aggregation:ping() few times. The result in my case is:
+
+``` bash Second console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation attach
+Attaching to /tmp//home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev2/erlang.pipe.1 (^D to exit)
+(aggregation2@127.0.0.1)1> aggregation:ping().
+Ping received by node : 'aggregation2@127.0.0.1'
+{pong,479555224749202520035584085735030365824602865664}
+(aggregation2@127.0.0.1)2> aggregation:ping().
+{pong,639406966332270026714112114313373821099470487552}
+(aggregation2@127.0.0.1)3>
+```
+
+As you see, the first invocation of ping() is received by the second node: "Ping received by node : 'aggregation2@127.0.0.1'". The second ping(), however, did not print anything. If we open the first console, we'll see:
+
+``` bash First console
+21:45:23.394 [info] 'aggregation2@127.0.0.1' joined cluster with status 'valid'
+Ping received by node : 'aggregation1@127.0.0.1'
+```
+
+Hey, distibuted unicorns! :)
+
+
+Tying up with the Diameter server
+----------------------------------
+
+
+
+
 
 
 
