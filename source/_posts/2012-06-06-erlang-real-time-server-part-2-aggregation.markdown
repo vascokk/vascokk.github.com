@@ -17,9 +17,9 @@ In a schematic view, the RTS will look like this:
 ![](/images/rts-part-2/RTS1.png)
 
 
-The idea here is: every Diameter request will be turned by the Diameter Server into a Riak command. The command then will be sent to the Aggregation, which as computational intensive module will run on a Riak cluster. 
+The idea here is: As a result of Diameter request, a command on Aggregation module will be invoked (e.g. "accounting()"). As it will be computational intensive, the Aggregation will run on a Riak cluster and the command will be executed within this cluster.
 
-Setting up a Riak cluster (plus a very lame introduction to Riak)
+Setting up a Riak cluster (or  "A very lame introduction to Riak")
 -------------------------------------------------------------------
 
 Setting up a cluster could be a tedious job. Fortunately, there are always some giant's shoulders you can step on\*. In this case I will use the Ryan Zezeski's RiakCore rebar [templates](https://github.com/rzezeski/rebar_riak_core)
@@ -53,9 +53,9 @@ What you are looking at is an application, which will start the Riak's working h
 - Riak is usually deployed on a cluster (set of phisical hosts called "nodes")
 - each node runs a certain number of "virtual nodes" (or "vnodes")
 - the vnode is responsible for a partition of the Riak "Ring" 
-- the Ring is a circular, ordered, 160 bit integer space (i.e. integers from 0 to 2^160)
-- the elements of the Ring are the hash values computed of the key from the "key/value" pair (in fact they are computed of the pair "bucket"+"key", but this is not so important at the moment)
-- the number of partitions is always the same, whether you add a new node to the Cluster or take one down (i.e. a bit of a planning is needed upfront)
+- the Ring is a circular, ordered, 160 bit integer space (i.e. integers from 0 to 2^160 placed in circle)
+- each element of the Ring represents a hash value computed of the key from a "key-value" pair (in fact it will be computed of the "bucket"+"key", but this is not so important at the moment)
+- the number of partitions is always the same, whether you add a new node to the Cluster or take one off (i.e. a bit of a planning is needed upfront)
 - the vnode can be used to store data or to perform computations (executing commands)
 
 I'll not go further into details, as [wiki.basho.com](http://wiki.basho.com) is your best source of information, if you want to dive in. I'll just outline the "scalability" thing and how Riak will make our life easier:
@@ -64,7 +64,7 @@ As you see in the second bullet from the bootom - the number of partitions is co
 
 1. Deploy the application on a new node. 
 2. "join" (one-line command) the new one to a randomly chosen node from the cluster (you can really pick any member, there is no "master node"). 
-3. ....Wait...there is no other steps... :)
+3. ....Wait...there is no 3rd... :)
 
 The new node will automatically claim a certain number of partitions, offloading the other nodes. Under the hood, Riak will use "handoff" procedures, "Gossip" protocol and other magics to do the job. What is important to us is that, due to the "consistent hashing" (more on this in some other article), the relocation of the vnodes will be transparent to the application(s) using the Riak cluster, as all the hash values are still on the same vnodes, even though, some of the vnodes are now residing on a different phisical host. Cool, isn't it? The bottom line is: Scaling by adding a new host to the cluster is dead simple, but it will relocate a number of vnodes - not add new ones. So, be careful when you plan your Ring size.
 
@@ -120,6 +120,45 @@ Compiled src/aggregation_ring_event_handler.erl
 ==> erlang-rts-part-2 (compile)
 
 ```
+
+Tyeing up 
+-----------------------
+
+
+
+
+
+Create release nodes
+-----------------------
+
+cd _rel_
+mkdir aggregation
+
+move everithing in _aggregation_ directory, edit the second line of reltool.config to match the directory structure:
+``` bash
+ {lib_dirs, ["../../apps/", "../../apps/aggregation/", "../../deps/"]},
+
+```
+
+
+Create the diaserver node (the same way as in Part1, only in different directory):
+
+``` bash
+mkdir diaserver
+cd diaserver
+/rel/diaserver $ ../../rebar create-node nodeid=diaserver
+==> diaserver (create-node)
+Writing reltool.config
+Writing files/erl
+Writing files/nodetool
+Writing files/diaserver
+Writing files/sys.config
+Writing files/vm.args
+Writing files/diaserver.cmd
+Writing files/start_erl.cmd
+```
+
+Edit reltool.config the in the way already described in Part1
 
 
 

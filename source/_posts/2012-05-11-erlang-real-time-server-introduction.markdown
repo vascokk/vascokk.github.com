@@ -10,7 +10,7 @@ Erlang RTS - Introduction
 
 What I am planning to do is a 'pet project' utilising my new passion - functional programing in Erlang. In this project I'll sketch some ideas for a telecom "Online Charging System"(OCS). I have no intention to implement a real OCS as defined in the 3GPP specifications. It will be just a small part of what is more popular in non-3GPP world as a "Real Time Server" (RTS). 
 
-"WTF is a RTS?" - you are asking. Well, when it coms to the Billing System domain, this is a piece of software, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the part of the system which grants you access to and charges for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc. 
+"WTF is a RTS?" - you are asking. Well, when it comes to the Billing System domain, this is a piece of software, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the part of the system which grants you access to and charges for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc. 
   
 The basic parts of the usual RTS are: 
 
