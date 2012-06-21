@@ -4,7 +4,7 @@
   <title><![CDATA[Category: rebar | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/rebar/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-06-21T22:34:24+01:00</updated>
+  <updated>2012-06-21T22:57:18+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[V.K.]]></name>
@@ -35,7 +35,7 @@
 
 <p>Among the other great things Erlang contains a Diameter library. This library has two important modules - diameter and diameter_app. With the help of the first one we can create a Diameter service, which receives and sends commands. The second one - diameter_app - is the callback module for the service started with the first. Please, note that I am using 'Diameter' to denote the protocol and 'diameter' for the Erlang module.</p>
 
-<p>I will not explain this part in details as it is better to take a look at the exelent example provided by the Erlang creators in the Diameter lib <a href="https://github.com/erlang/otp/tree/master/lib/diameter/examples/code">source</a>. Just a couple of important things:</p>
+<p>I will not explain this part in details as it is better to take a look at the exelent example provided by Erlang creators inside the Diameter lib <a href="https://github.com/erlang/otp/tree/master/lib/diameter/examples/code">source</a>. Just a couple of important things:</p>
 
 <p>How to start the service:</p>
 
@@ -61,7 +61,7 @@ start() -></p>
 
 <p>```</p>
 
-<p>Few things to be mentioned here:</p>
+<p>There are few things to be mentioned here:</p>
 
 <ul>
 <li>Service - the service will usually implement a given Diameter Application.</li>
