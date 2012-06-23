@@ -50,20 +50,23 @@ aggregation_vnode.erl
 What you are looking at is an application, which will start the Riak's working horse - the vnode. The vnode ("virtual node") is the building block of the Riak cluster. Riak itself is heavily influenced by Amazon's Dynamo paper - ["Dynamo: Amazon’s Highly Available Key-value Store"](http://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf). It is worth reading, but if you are not in an "academic mood" right now, here are some highlights:
 
 - Riak is a distributed, highly scalable, key-value store
-- Riak is usually deployed on a cluster
-- a Riak Cluster is run on a set of phisical hosts called "nodes"
-- each node runs a certain number of "virtual nodes" or "vnodes"
+- Riak is usually deployed on a cluster (set of phisical hosts called "nodes")
+- each node runs a certain number of "virtual nodes" (or "vnodes")
 - the vnode is responsible for a partition of the Riak "Ring" 
+- the Ring is a circular, ordered, 160 bit integer space (i.e. integers from 0 to 2^160)
+- the elements of the Ring are the hash values computed of the key from the "key/value" pair (in fact they are computed of the pair "bucket"+"key", but this is not so important at the moment)
+- the number of partitions is always the same, whether you add a new node to the Cluster or take one down (i.e. a bit of a planning is needed upfront)
 - the vnode can be used to store data or to perform computations (executing commands)
-- the Ring is a circular ordered 160 bit integer space (i.e. integers from 0 to 2^160)
-- the elements of the Ring are the hash values computed of the key(in fact they are computed of the pair "bucket"+"key", but this is not so important at the moment)
-- the number of partitions is always the same whether you add a new node to the Cluster or take one down (i.e. a bit of a planning is needed upfront)
 
 I'll not go further into details, as [wiki.basho.com](http://wiki.basho.com) is your best source of information, if you want to dive in. I'll just outline the "scalability" thing and how Riak will make our life easier:
 
-As you see in the last bullet above - the number of partitions is constant (it is set in the app.config's _ring_creation_size_ parameter). Default number is 64 and there is no formal way to calculate it according our needs. It would be more or less empirically set. According to the Riak's wiki - for a mid-sized cluster of 8 to 16 nodes, the number should be between 128 and 512 partitions (always a power of 2), but this is definitely not "set on stone". Let's assume that we have set the optimal ring size already. What we will do, when we need more power, is just: run another node and join it to a randomly chosen node from the cluster (you can really pick any node, there is no "master"). The new node will automatically claim a certain number of partitions/vnodes, offloading the other hosts. Due to the "consistent hashing" (more on this in some other article) the relocation of the vnodes will be transparent to the application which sends commands to the cluster, as all the keys' hash values are still on the same vnodes, even though some of the vnodes are now residing on a different phisical node. Charming, isn't it? Operational cost is minimized.  Under the hood, Riak will use "handoff" procedures, "Gossip" protocol and other magics to do the job.
+As you see in the second bullet from the bootom - the number of partitions is constant. It is set in the app.config's _ring_creation_size_ parameter. Default number is 64 and there is no formal way to calculate it. It would be more or less empirically set by the developer. According to the Riak's wiki - for a mid-sized cluster of 8 to 16 nodes, the number should be between 128 and 512 partitions (always a power of 2), but this is definitely not "set on stone". Let's assume that we have set the optimal ring size already. At some point of time when the system is fully operational, we might need more computational power. Then, what we should do is: 
 
-The bottom line is: Adding a new host to the cluster is dead simple. It will relocate a number of vnodes, not increase their number, so be careful when you plan the Ring size.
+1. Deploy the application on a new node. 
+2. "join" (one-line command) the new one to a randomly chosen node from the cluster (you can really pick any member, there is no "master node"). 
+3. ....Wait...there is no other steps... :)
+
+The new node will automatically claim a certain number of partitions, offloading the other nodes. Under the hood, Riak will use "handoff" procedures, "Gossip" protocol and other magics to do the job. What is important to us is that, due to the "consistent hashing" (more on this in some other article), the relocation of the vnodes will be transparent to the application(s) using the Riak cluster, as all the hash values are still on the same vnodes, even though, some of the vnodes are now residing on a different phisical host. Cool, isn't it? The bottom line is: Scaling by adding a new host to the cluster is dead simple, but it will relocate a number of vnodes - not add new ones. So, be careful when you plan your Ring size.
 
 
 

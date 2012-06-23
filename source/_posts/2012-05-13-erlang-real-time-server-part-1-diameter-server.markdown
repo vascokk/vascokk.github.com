@@ -25,7 +25,7 @@ Among the other great things Erlang contains a Diameter library. This library ha
 
 I will not explain this part in details as it is better to take a look at the exelent example provided by the Erlang creators in the Diameter lib [source](https://github.com/erlang/otp/tree/master/lib/diameter/examples/code). Just a couple of important things:
 
-How to start the service
+How to start the service:
 
 ``` erlang
 start() ->
@@ -124,7 +124,7 @@ or alternatively, using template rtsapp.template (this is my version of Susan's 
 .../apps/diaserver $ ./rebar create template=rtsapp name=diaserver
 ```
 
-The above are the files needed to make our applications of terms of Erlang/OTP framework. The real job (starting diameter server, receieving commands, etc) will be done by a gen_server module, created with the following command:
+The above are the "supplementary" files needed to create our application in terms of Erlang/OTP framework. The actual job (starting diameter server, receieving commands, etc) will be done by a gen_server module, created with the following command:
 
 ``` bash Create gen_server module using template
 .../apps/diaserver $ ./rebar create template=gen_server name=diameter
@@ -133,7 +133,7 @@ Writing src/diameter_srv.erl
 ```
 
 This will create a file named diameter_srv.erl in the ...apps/diaserver/src. 
-Again, gen_server template here is a modified (read - renamed and changed the names inside the template) version of finapp.template you downloaded before.
+Again, gen_server template here is a modified (read: "renamed and the names inside the template changed") version of finapp.template you git-cloned earlier.
 Here is what the file should look like:
 
 ``` erlang diameter_srv.erl
@@ -214,8 +214,8 @@ terminate(_Reason, _State) ->
 %%% vim: set filetype=erlang tabstop=2 foldmarker=%%%',%%%. foldmethod=marker:
 ``` 
 
-Now, as we have the skeleton, we can start to flesh it out.
-What we need to do is just to put the start() snippet from the above in the init() function:
+Now, as we have the skeleton, we can start to flesh it out with our specific code.
+What we need to do is to put the start() snippet from the above in the init() function:
 
 ``` erlang 
 init(State) ->
@@ -244,7 +244,7 @@ Then just add the headers to be included in the beginning:
 -include_lib("diameter_gen_base_rfc3588.hrl").
 ```
 
-and that's pretty much it for the gen_server. It is of course a good idea to create a macros for the service options, as we will probably implement several Diameter Applications in this module, so, each one will need different name, svc and transport options. For simplicity's sake, I'll leave it as is for now.
+and that's pretty much for the gen_server. It is of course a good idea to create a macros for the service options, as we will probably implement several Diameter Applications in this module, so, each one will need different name, svc and transport options. For simplicity's sake, I'll leave it as is for now.
 
 Why we bother at all with those gen_server behaviour, templates, etc? Fist we need a gen_server in order to comply with OTP application requirements and second - we can use this behaviour later to control our server.
 
