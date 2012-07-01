@@ -1,0 +1,997 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Reinventing The Wheel]]></title>
+  <link href="http://vascokk.github.com/atom.xml" rel="self"/>
+  <link href="http://vascokk.github.com/"/>
+  <updated>2012-06-21T22:57:18+01:00</updated>
+  <id>http://vascokk.github.com/</id>
+  <author>
+    <name><![CDATA[V.K.]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang Real Time Server - Part 1 - Diameter Server]]></title>
+    <link href="http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/"/>
+    <updated>2012-05-13T18:32:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server</id>
+    <content type="html"><![CDATA[<h2>Diameter Basics</h2>
+
+<p>The <a href="http://en.wikipedia.org/wiki/Diameter_(protocol)">Diameter</a> protocol is defined by <a href="http://tools.ietf.org/html/rfc3588">RFC 3588</a>, and defines the minimum requirements for an AAA protocol. The best way to build up some knowledge in Diameter is to read the RFC first. At the end of the Wikipedia article there are also a bunch of links to good introductory articles. Anyway, few very basic points:</p>
+
+<ul>
+<li>There are several types of Diameter nodes - Client, Server, Relay, Proxy (we will focus only on the first two)</li>
+<li>Diameter nodes communicate with &#8220;commands&#8221;;</li>
+<li>Clients send a given command as &#8220;Request&#8221; and the server replays with the same command as &#8220;Answer&#8221;, e.g. Accounting-Request and Accounting-Answer - both will have the same command code (271), but in the case of the Client the &#8216;Command Flags&#8217; &#8216;R&#8217; bit will be set;</li>
+<li>Each command has a predefined set of attributes. If there is a need for additional attributes, they can be specified as &#8220;Vendor Specific Attribute Value Pairs&#8221; (or AVPs for short);</li>
+<li>RFC 3588 defines the basic set of AAA commands. Additional commands are defined in Diameter extensions called &#8220;Applications&#8221;. Don&#8217;t confuse them with the usual software applications (blame the Diameter creators for the poor choice of word here :), they are just declarative specifications (or &#8216;contracts&#8217;).</li>
+</ul>
+
+
+<h2>Diameter in Erlang</h2>
+
+<p>Among the other great things Erlang contains a Diameter library. This library has two important modules - diameter and diameter_app. With the help of the first one we can create a Diameter service, which receives and sends commands. The second one - diameter_app - is the callback module for the service started with the first. Please, note that I am using &#8216;Diameter&#8217; to denote the protocol and &#8216;diameter&#8217; for the Erlang module.</p>
+
+<p>I will not explain this part in details as it is better to take a look at the exelent example provided by Erlang creators inside the Diameter lib <a href="https://github.com/erlang/otp/tree/master/lib/diameter/examples/code">source</a>. Just a couple of important things:</p>
+
+<p>How to start the service:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">start</span><span class="p">()</span> <span class="o">-&gt;</span>
+</span><span class='line'>        <span class="nv">SvcName</span> <span class="o">=</span> <span class="no">?MODULE</span><span class="p">,</span>
+</span><span class='line'>        <span class="nv">SvcOpts</span> <span class="o">=</span> <span class="p">[{</span><span class="n">&#39;Origin-Host&#39;</span><span class="p">,</span> <span class="nb">atom_to_list</span><span class="p">(</span><span class="nv">SvcName</span><span class="p">)</span> <span class="o">++</span> <span class="s">&quot;.example.com&quot;</span><span class="p">},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">&#39;Origin-Realm&#39;</span><span class="p">,</span> <span class="s">&quot;example.com&quot;</span><span class="p">},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">&#39;Vendor-Id&#39;</span><span class="p">,</span> <span class="mi">193</span><span class="p">},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">&#39;Product-Name&#39;</span><span class="p">,</span> <span class="s">&quot;Server&quot;</span><span class="p">},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">&#39;Auth-Application-Id&#39;</span><span class="p">,</span> <span class="p">[</span><span class="no">?DIAMETER_APP_ID_COMMON</span><span class="p">]},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">application</span><span class="p">,</span> <span class="p">[{</span><span class="n">alias</span><span class="p">,</span> <span class="n">diameter_base_app</span><span class="p">},</span>
+</span><span class='line'>                                       <span class="p">{</span><span class="n">dictionary</span><span class="p">,</span> <span class="no">?DIAMETER_DICT_COMMON</span><span class="p">},</span>
+</span><span class='line'>                                       <span class="p">{</span><span class="n">module</span><span class="p">,</span> <span class="n">server_cb</span><span class="p">}]}],</span>
+</span><span class='line'>        <span class="nv">TransportOpts</span> <span class="o">=</span>  <span class="p">[{</span><span class="n">transport_module</span><span class="p">,</span> <span class="n">diameter_tcp</span><span class="p">},</span>
+</span><span class='line'>                                        <span class="p">{</span><span class="n">transport_config</span><span class="p">,</span> <span class="p">[{</span><span class="n">reuseaddr</span><span class="p">,</span> <span class="n">true</span><span class="p">},</span>
+</span><span class='line'>                                        <span class="p">{</span><span class="n">ip</span><span class="p">,</span> <span class="p">{</span><span class="mi">127</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">}},</span> <span class="p">{</span><span class="n">port</span><span class="p">,</span> <span class="mi">3868</span><span class="p">}]}],</span>
+</span><span class='line'>        <span class="nn">diameter</span><span class="p">:</span><span class="n">start</span><span class="p">(),</span>
+</span><span class='line'>        <span class="nn">diameter</span><span class="p">:</span><span class="n">start_service</span><span class="p">(</span><span class="nv">SvcName</span><span class="p">,</span> <span class="nv">SvcOpts</span><span class="p">),</span>
+</span><span class='line'>        <span class="nn">diameter</span><span class="p">:</span><span class="n">add_transport</span><span class="p">(</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">{</span><span class="n">listen</span><span class="p">,</span> <span class="nv">TransportOpts</span><span class="p">}).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>There are few things to be mentioned here:</p>
+
+<ul>
+<li>Service - the service will usually implement a given Diameter Application.</li>
+<li>?DIAMETER_APP_ID_COMMON and ?DIAMETER_DICT_COMMON are defined in diameter.hrl</li>
+<li>server_cb (line 10) will be our diameter callback module (implementation of diameter_app)</li>
+</ul>
+
+
+<p>diameter_cb will handle Diameter requests. An example function, which handles &#8220;Accounting-Request&#8221; command (code=271) is given below:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">handle_request</span><span class="p">(</span><span class="nl">#diameter_packet</span><span class="p">{</span><span class="n">msg</span> <span class="o">=</span> <span class="nv">Req</span><span class="p">,</span> <span class="n">errors</span> <span class="o">=</span> <span class="p">[]},</span> <span class="p">_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">{_,</span> <span class="nv">Caps</span><span class="p">})</span>
+</span><span class='line'>                  <span class="k">when</span> <span class="nb">is_record</span><span class="p">(</span><span class="nv">Req</span><span class="p">,</span> <span class="n">diameter_base_ACR</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="nl">#diameter_caps</span><span class="p">{</span><span class="n">origin_host</span> <span class="o">=</span> <span class="p">{</span><span class="nv">OH</span><span class="p">,_},</span>
+</span><span class='line'>                           <span class="n">origin_realm</span> <span class="o">=</span> <span class="p">{</span><span class="nv">OR</span><span class="p">,_}}</span>
+</span><span class='line'>                <span class="o">=</span> <span class="nv">Caps</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="nl">#diameter_base_ACR</span><span class="p">{</span><span class="n">&#39;Session-Id&#39;</span> <span class="o">=</span> <span class="nv">Id</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Type&#39;</span> <span class="o">=</span> <span class="nv">RecType</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Number&#39;</span> <span class="o">=</span> <span class="nv">RecNum</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Acct-Application-Id&#39;</span> <span class="o">=</span> <span class="nv">AccAppId</span> <span class="p">}</span>
+</span><span class='line'>                <span class="o">=</span> <span class="nv">Req</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="nv">Ans</span> <span class="o">=</span> <span class="nl">#diameter_base_ACA</span><span class="p">{</span><span class="n">&#39;Result-Code&#39;</span> <span class="o">=</span> <span class="no">?&#39;DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS&#39;</span><span class="p">,</span>
+</span><span class='line'>                                   <span class="n">&#39;Origin-Host&#39;</span> <span class="o">=</span> <span class="nv">OH</span><span class="p">,</span>
+</span><span class='line'>                                   <span class="n">&#39;Origin-Realm&#39;</span> <span class="o">=</span> <span class="nv">OR</span><span class="p">,</span>
+</span><span class='line'>                                   <span class="n">&#39;Session-Id&#39;</span> <span class="o">=</span> <span class="nv">Id</span><span class="p">,</span>
+</span><span class='line'>                                   <span class="n">&#39;Accounting-Record-Type&#39;</span> <span class="o">=</span> <span class="nv">RecType</span><span class="p">,</span>
+</span><span class='line'>                                   <span class="n">&#39;Accounting-Record-Number&#39;</span> <span class="o">=</span> <span class="nv">RecNum</span><span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="n">reply</span><span class="p">,</span> <span class="nv">Ans</span><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>What we have here is:</p>
+
+<ul>
+<li>get the origin host and origin realm in OH and OR from the peer&#8217;s &#8220;capabilities&#8221; (Caps)</li>
+<li>get some of the request parameters like SessionId, record type, etc</li>
+<li>constructing the Accounting-Answer message as #diameter_base_ACA record</li>
+<li>reply with the answer</li>
+</ul>
+
+
+<p>Note: Base Diameter protocol (rfc3588) can be used for Accounting only. For Authentication and Authorization it must be extended with other Diameter applications, which depends on the type of the applications, e.g. Diameter Network Access Application(rfc4005) and Diameter Mobile IPv4 Application(rfc4004). In the IMS architecture for example, there are many subsystems communicating each other via different interfaces. Each interface is based on a given &#8220;Diameter Application&#8221;, which has a specific set of commands.</p>
+
+<h2>Using rebar as a build tool</h2>
+
+<p>I am going to use <a href="https://github.com/basho/rebar">Basho&#8217;s rebar</a> to build my application. The project will contain at least two separately deployable applications - Diameter server and Aggregation module. I&#8217;ll put them in separate app directories under my project&#8217;s root.</p>
+
+<p>First, create &#8230;/apps/diaserver directory under your project dir and then, copy rebar executable in &#8220;diaserver&#8221; directory.</p>
+
+<p>Now, let&#8217;s create the project structure for our application. For this, we will need a project template. There are many in github. I&#8217;ll use the templates generously provided by <a href="https://github.com/mbbx6spp/rebar-templates">Susan Potter</a>. Just clone the repository in your ~/.rebar/templates directory, then do:</p>
+
+<figure class='code'><figcaption><span>Create erlang project</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>.../apps/diaserver <span class="nv">$ </span>./rebar create <span class="nv">template</span><span class="o">=</span><span class="nv">project</span>
+</span><span class='line'><span class="o">==</span>&gt; diaserver <span class="o">(</span>create<span class="o">)</span>
+</span><span class='line'>Writing README
+</span><span class='line'>Writing rebar.config
+</span><span class='line'>Writing Emakefile
+</span><span class='line'>Writing Makefile
+</span><span class='line'>Writing .gitignore
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next, we will create the application files. We need 3 files: application resource file, application behavior implementation and application supervisor (see <a href="http://learnyousomeerlang.com/building-otp-applications">here</a> for a detailed explanation of OTP applications). They all will be created by rebar:</p>
+
+<figure class='code'><figcaption><span>Create application using rebar</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>.../apps/diaserver <span class="nv">$ </span>./rebar create-app <span class="nv">appid</span><span class="o">=</span><span class="nv">diaserver</span>
+</span><span class='line'><span class="o">==</span>&gt; diaserver <span class="o">(</span>create-app<span class="o">)</span>
+</span><span class='line'>Writing src/diaserver.app.src
+</span><span class='line'>Writing src/diaserver_app.erl
+</span><span class='line'>Writing src/diaserver_sup.erl
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>or alternatively, using template rtsapp.template (this is my version of Susan&#8217;s finapp.template):</p>
+
+<figure class='code'><figcaption><span>Create application skeleton using rebar template</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>.../apps/diaserver <span class="nv">$ </span>./rebar create <span class="nv">template</span><span class="o">=</span>rtsapp <span class="nv">name</span><span class="o">=</span>diaserver
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The above are the &#8220;supplementary&#8221; files needed to create our application in terms of Erlang/OTP framework. The actual job (starting diameter server, receieving commands, etc) will be done by a gen_server module, created with the following command:</p>
+
+<figure class='code'><figcaption><span>Create gen_server module using template</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>.../apps/diaserver <span class="nv">$ </span>./rebar create <span class="nv">template</span><span class="o">=</span>gen_server <span class="nv">name</span><span class="o">=</span><span class="nv">diameter</span>
+</span><span class='line'><span class="o">==</span>&gt; diaserver <span class="o">(</span>create<span class="o">)</span>
+</span><span class='line'>Writing src/diameter_srv.erl
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This will create a file named diameter_srv.erl in the &#8230;apps/diaserver/src.
+Again, gen_server template here is a modified (read: &#8220;renamed and the names inside the template changed&#8221;) version of finapp.template you git-cloned earlier.
+Here is what the file should look like:</p>
+
+<figure class='code'><figcaption><span>diameter_srv.erl</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+<span class='line-number'>74</span>
+<span class='line-number'>75</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">%% @author &lt;your name&gt; &lt;your email&gt;</span>
+</span><span class='line'><span class="c">%% @copyright 2012 &lt;your name&gt;</span>
+</span><span class='line'><span class="c">%% @doc gen_server callback module implementation:</span>
+</span><span class='line'><span class="c">%%</span>
+</span><span class='line'><span class="c">%% @end</span>
+</span><span class='line'><span class="p">-</span><span class="ni">module</span><span class="p">(</span><span class="n">diameter_srv</span><span class="p">).</span>
+</span><span class='line'><span class="p">-</span><span class="ni">author</span><span class="p">(</span><span class="n">&#39;&lt;your name&gt;&#39;</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">-</span><span class="ni">behaviour</span><span class="p">(</span><span class="n">gen_server</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">-</span><span class="ni">export</span><span class="p">([</span><span class="n">start_link</span><span class="o">/</span><span class="mi">0</span><span class="p">]).</span>
+</span><span class='line'><span class="p">-</span><span class="ni">export</span><span class="p">([</span><span class="n">init</span><span class="o">/</span><span class="mi">1</span><span class="p">,</span> <span class="n">handle_call</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span> <span class="n">handle_cast</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">handle_info</span><span class="o">/</span><span class="mi">2</span><span class="p">]).</span>
+</span><span class='line'><span class="p">-</span><span class="ni">export</span><span class="p">([</span><span class="n">code_change</span><span class="o">/</span><span class="mi">3</span><span class="p">]).</span>
+</span><span class='line'><span class="p">-</span><span class="ni">export</span><span class="p">([</span><span class="n">stop</span><span class="o">/</span><span class="mi">0</span><span class="p">,</span> <span class="n">terminate</span><span class="o">/</span><span class="mi">2</span><span class="p">]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% TODO: If unnamed server, remove definition below.</span>
+</span><span class='line'><span class="p">-</span><span class="ni">define</span><span class="p">(</span><span class="no">SERVER</span><span class="p">,</span> <span class="no">?MODULE</span><span class="p">).</span>
+</span><span class='line'><span class="c">%%%.</span>
+</span><span class='line'><span class="c">%%%&#39;   PUBLIC API</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%% @doc starts gen_server implementation and caller links to the process too.</span>
+</span><span class='line'><span class="p">-</span><span class="ni">spec</span> <span class="n">start_link</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Pid</span><span class="p">}</span> <span class="p">|</span> <span class="n">ignore</span> <span class="p">|</span> <span class="p">{</span><span class="n">error</span><span class="p">,</span> <span class="nv">Error</span><span class="p">}</span>
+</span><span class='line'>  <span class="k">when</span>
+</span><span class='line'>      <span class="nv">Pid</span> <span class="p">::</span> <span class="n">pid</span><span class="p">(),</span>
+</span><span class='line'>      <span class="nv">Error</span> <span class="p">::</span> <span class="p">{</span><span class="n">already_started</span><span class="p">,</span> <span class="nv">Pid</span><span class="p">}</span> <span class="p">|</span> <span class="n">term</span><span class="p">().</span>
+</span><span class='line'><span class="nf">start_link</span><span class="p">()</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="c">% TODO: decide whether to name gen_server callback implementation or not.</span>
+</span><span class='line'>  <span class="c">% gen_server:start_link(?MODULE, [], []). % for unnamed gen_server</span>
+</span><span class='line'>  <span class="nn">gen_server</span><span class="p">:</span><span class="n">start_link</span><span class="p">({</span><span class="n">local</span><span class="p">,</span> <span class="no">?SERVER</span><span class="p">},</span> <span class="no">?MODULE</span><span class="p">,</span> <span class="p">[],</span> <span class="p">[]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%% @doc stops gen_server implementation process</span>
+</span><span class='line'><span class="p">-</span><span class="ni">spec</span> <span class="n">stop</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">ok</span><span class="p">.</span>
+</span><span class='line'><span class="nf">stop</span><span class="p">()</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="nn">gen_server</span><span class="p">:</span><span class="n">cast</span><span class="p">(</span><span class="no">?SERVER</span><span class="p">,</span> <span class="n">stop</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% TODO: add more public API here...</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%%%.</span>
+</span><span class='line'><span class="c">%%%&#39;   CALLBACKS</span>
+</span><span class='line'><span class="c">%% @callback gen_server</span>
+</span><span class='line'><span class="nf">init</span><span class="p">(</span><span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">State</span><span class="p">}.</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%% @callback gen_server</span>
+</span><span class='line'><span class="nf">handle_call</span><span class="p">(_</span><span class="nv">Req</span><span class="p">,</span> <span class="p">_</span><span class="nv">From</span><span class="p">,</span> <span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">reply</span><span class="p">,</span> <span class="nv">State</span><span class="p">}.</span>
+</span><span class='line'><span class="c">%% @callback gen_server</span>
+</span><span class='line'><span class="nf">handle_cast</span><span class="p">(</span><span class="n">stop</span><span class="p">,</span> <span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">stop</span><span class="p">,</span> <span class="n">normal</span><span class="p">,</span> <span class="nv">State</span><span class="p">};</span>
+</span><span class='line'><span class="nf">handle_cast</span><span class="p">(_</span><span class="nv">Req</span><span class="p">,</span> <span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">noreply</span><span class="p">,</span> <span class="nv">State</span><span class="p">}.</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%% @callback gen_server</span>
+</span><span class='line'><span class="nf">handle_info</span><span class="p">(_</span><span class="nv">Info</span><span class="p">,</span> <span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">noreply</span><span class="p">,</span> <span class="nv">State</span><span class="p">}.</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%% @callback gen_server</span>
+</span><span class='line'><span class="nf">code_change</span><span class="p">(_</span><span class="nv">OldVsn</span><span class="p">,</span> <span class="nv">State</span><span class="p">,</span> <span class="p">_</span><span class="nv">Extra</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">State</span><span class="p">}.</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%% @callback gen_server</span>
+</span><span class='line'><span class="nf">terminate</span><span class="p">(</span><span class="n">normal</span><span class="p">,</span> <span class="p">_</span><span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="n">ok</span><span class="p">;</span>
+</span><span class='line'><span class="nf">terminate</span><span class="p">(</span><span class="n">shutdown</span><span class="p">,</span> <span class="p">_</span><span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="n">ok</span><span class="p">;</span>
+</span><span class='line'><span class="nf">terminate</span><span class="p">({</span><span class="n">shutdown</span><span class="p">,</span> <span class="p">_</span><span class="nv">Reason</span><span class="p">},</span> <span class="p">_</span><span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="n">ok</span><span class="p">;</span>
+</span><span class='line'><span class="nf">terminate</span><span class="p">(_</span><span class="nv">Reason</span><span class="p">,</span> <span class="p">_</span><span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="n">ok</span><span class="p">.</span>
+</span><span class='line'><span class="c">%%%.</span>
+</span><span class='line'><span class="c">%%%&#39;   PRIVATE FUNCTIONS</span>
+</span><span class='line'><span class="c">% TODO: Add private helper functions here.</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%%%.</span>
+</span><span class='line'><span class="c">%%% vim: set filetype=erlang tabstop=2 foldmarker=%%%&#39;,%%%. foldmethod=marker:</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>Now, as we have the skeleton, we can start to flesh it out with our specific code.
+What we need to do is to put the start() snippet from the above in the init() function:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">init</span><span class="p">(</span><span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>        <span class="nv">SvcName</span> <span class="o">=</span> <span class="no">?MODULE</span><span class="p">,</span>
+</span><span class='line'>        <span class="nv">SvcOpts</span> <span class="o">=</span> <span class="p">[{</span><span class="n">&#39;Origin-Host&#39;</span><span class="p">,</span> <span class="nb">atom_to_list</span><span class="p">(</span><span class="nv">SvcName</span><span class="p">)</span> <span class="o">++</span> <span class="s">&quot;.example.com&quot;</span><span class="p">},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">&#39;Origin-Realm&#39;</span><span class="p">,</span> <span class="s">&quot;example.com&quot;</span><span class="p">},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">&#39;Vendor-Id&#39;</span><span class="p">,</span> <span class="mi">193</span><span class="p">},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">&#39;Product-Name&#39;</span><span class="p">,</span> <span class="s">&quot;Server&quot;</span><span class="p">},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">&#39;Auth-Application-Id&#39;</span><span class="p">,</span> <span class="p">[</span><span class="no">?DIAMETER_APP_ID_COMMON</span><span class="p">]},</span>
+</span><span class='line'>                        <span class="p">{</span><span class="n">application</span><span class="p">,</span> <span class="p">[{</span><span class="n">alias</span><span class="p">,</span> <span class="n">diameter_base_app</span><span class="p">},</span>
+</span><span class='line'>                                       <span class="p">{</span><span class="n">dictionary</span><span class="p">,</span> <span class="no">?DIAMETER_DICT_COMMON</span><span class="p">},</span>
+</span><span class='line'>                                       <span class="p">{</span><span class="n">module</span><span class="p">,</span> <span class="n">server_cb</span><span class="p">}]}],</span>
+</span><span class='line'>        <span class="nv">TransportOpts</span> <span class="o">=</span>  <span class="p">[{</span><span class="n">transport_module</span><span class="p">,</span> <span class="n">diameter_tcp</span><span class="p">},</span>
+</span><span class='line'>                                        <span class="p">{</span><span class="n">transport_config</span><span class="p">,</span> <span class="p">[{</span><span class="n">reuseaddr</span><span class="p">,</span> <span class="n">true</span><span class="p">},</span>
+</span><span class='line'>                                        <span class="p">{</span><span class="n">ip</span><span class="p">,</span> <span class="p">{</span><span class="mi">127</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">}},</span> <span class="p">{</span><span class="n">port</span><span class="p">,</span> <span class="mi">3868</span><span class="p">}]}],</span>
+</span><span class='line'>        <span class="nn">diameter</span><span class="p">:</span><span class="n">start</span><span class="p">(),</span>
+</span><span class='line'>        <span class="nn">diameter</span><span class="p">:</span><span class="n">start_service</span><span class="p">(</span><span class="nv">SvcName</span><span class="p">,</span> <span class="nv">SvcOpts</span><span class="p">),</span>
+</span><span class='line'>        <span class="nn">diameter</span><span class="p">:</span><span class="n">add_transport</span><span class="p">(</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">{</span><span class="n">listen</span><span class="p">,</span> <span class="nv">TransportOpts</span><span class="p">}),</span>
+</span><span class='line'>       <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">State</span><span class="p">}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then just add the headers to be included in the beginning:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="p">-</span><span class="ni">include_lib</span><span class="p">(</span><span class="s">&quot;diameter.hrl&quot;</span><span class="p">).</span>
+</span><span class='line'><span class="p">-</span><span class="ni">include_lib</span><span class="p">(</span><span class="s">&quot;diameter_gen_base_rfc3588.hrl&quot;</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and that&#8217;s pretty much for the gen_server. It is of course a good idea to create a macros for the service options, as we will probably implement several Diameter Applications in this module, so, each one will need different name, svc and transport options. For simplicity&#8217;s sake, I&#8217;ll leave it as is for now.</p>
+
+<p>Why we bother at all with those gen_server behaviour, templates, etc? Fist we need a gen_server in order to comply with OTP application requirements and second - we can use this behaviour later to control our server.</p>
+
+<p>As you already know, there is another module we need to implement - the diameter_app (the callback) module. Here is how it looks like:</p>
+
+<figure class='code'><figcaption><span>server_cb.erl</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="p">-</span><span class="ni">module</span><span class="p">(</span><span class="n">server_cb</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="p">-</span><span class="ni">include_lib</span><span class="p">(</span><span class="s">&quot;diameter.hrl&quot;</span><span class="p">).</span>
+</span><span class='line'><span class="p">-</span><span class="ni">include_lib</span><span class="p">(</span><span class="s">&quot;diameter_gen_base_rfc3588.hrl&quot;</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%% diameter callbacks</span>
+</span><span class='line'><span class="p">-</span><span class="ni">export</span><span class="p">([</span><span class="n">peer_up</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span>
+</span><span class='line'>         <span class="n">peer_down</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span>
+</span><span class='line'>         <span class="n">pick_peer</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span>
+</span><span class='line'>         <span class="n">prepare_request</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span>
+</span><span class='line'>         <span class="n">prepare_retransmit</span><span class="o">/</span><span class="mi">3</span><span class="p">,</span>
+</span><span class='line'>         <span class="n">handle_answer</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span>
+</span><span class='line'>         <span class="n">handle_error</span><span class="o">/</span><span class="mi">4</span><span class="p">,</span>
+</span><span class='line'>         <span class="n">handle_request</span><span class="o">/</span><span class="mi">3</span><span class="p">]).</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="p">-</span><span class="ni">define</span><span class="p">(</span><span class="no">UNEXPECTED</span><span class="p">,</span> <span class="nn">erlang</span><span class="p">:</span><span class="n">error</span><span class="p">({</span><span class="n">unexpected</span><span class="p">,</span> <span class="no">?MODULE</span><span class="p">,</span> <span class="no">?LINE</span><span class="p">})).</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">peer_up</span><span class="p">(_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">{</span><span class="nv">PeerRef</span><span class="p">,</span> <span class="p">_},</span> <span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>            <span class="nn">io</span><span class="p">:</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;up: </span><span class="si">~p~n</span><span class="s">&quot;</span><span class="p">,</span> <span class="p">[</span><span class="nv">PeerRef</span><span class="p">]),</span>
+</span><span class='line'>            <span class="nv">State</span><span class="p">.</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">peer_down</span><span class="p">(_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">{</span><span class="nv">PeerRef</span><span class="p">,</span> <span class="p">_},</span> <span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>            <span class="nn">io</span><span class="p">:</span><span class="n">format</span><span class="p">(</span><span class="s">&quot;down: </span><span class="si">~p~n</span><span class="s">&quot;</span><span class="p">,</span> <span class="p">[</span><span class="nv">PeerRef</span><span class="p">]),</span>
+</span><span class='line'>            <span class="nv">State</span><span class="p">.</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">pick_peer</span><span class="p">(_,</span> <span class="p">_,</span> <span class="p">_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">_</span><span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>            <span class="no">?UNEXPECTED</span><span class="p">.</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">prepare_request</span><span class="p">(_,</span> <span class="p">_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">_</span><span class="nv">Peer</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>            <span class="no">?UNEXPECTED</span><span class="p">.</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">prepare_retransmit</span><span class="p">(_</span><span class="nv">Packet</span><span class="p">,</span> <span class="p">_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">_</span><span class="nv">Peer</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>            <span class="no">?UNEXPECTED</span><span class="p">.</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">handle_answer</span><span class="p">(_</span><span class="nv">Packet</span><span class="p">,</span> <span class="p">_</span><span class="nv">Request</span><span class="p">,</span> <span class="p">_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">_</span><span class="nv">Peer</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>            <span class="no">?UNEXPECTED</span><span class="p">.</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">handle_error</span><span class="p">(_</span><span class="nv">Reason</span><span class="p">,</span> <span class="p">_</span><span class="nv">Request</span><span class="p">,</span> <span class="p">_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">_</span><span class="nv">Peer</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>            <span class="no">?UNEXPECTED</span><span class="p">.</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="nf">handle_request</span><span class="p">(</span><span class="nl">#diameter_packet</span><span class="p">{</span><span class="n">msg</span> <span class="o">=</span> <span class="nv">Req</span><span class="p">,</span> <span class="n">errors</span> <span class="o">=</span> <span class="p">[]},</span> <span class="p">_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">{_,</span> <span class="nv">Caps</span><span class="p">})</span>
+</span><span class='line'>                  <span class="k">when</span> <span class="nb">is_record</span><span class="p">(</span><span class="nv">Req</span><span class="p">,</span> <span class="n">diameter_base_ACR</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="nl">#diameter_caps</span><span class="p">{</span><span class="n">origin_host</span> <span class="o">=</span> <span class="p">{</span><span class="nv">OH</span><span class="p">,_},</span>
+</span><span class='line'>                           <span class="n">origin_realm</span> <span class="o">=</span> <span class="p">{</span><span class="nv">OR</span><span class="p">,_}}</span>
+</span><span class='line'>                <span class="o">=</span> <span class="nv">Caps</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="nl">#diameter_base_ACR</span><span class="p">{</span><span class="n">&#39;Session-Id&#39;</span> <span class="o">=</span> <span class="nv">Id</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Type&#39;</span> <span class="o">=</span> <span class="nv">RecType</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Number&#39;</span> <span class="o">=</span> <span class="nv">RecNum</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Acct-Application-Id&#39;</span> <span class="o">=</span> <span class="nv">AccAppId</span> <span class="p">}</span>
+</span><span class='line'>                <span class="o">=</span> <span class="nv">Req</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="nv">Ans</span> <span class="o">=</span> <span class="nl">#diameter_base_ACA</span><span class="p">{</span><span class="n">&#39;Result-Code&#39;</span> <span class="o">=</span> <span class="no">?&#39;DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS&#39;</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Origin-Host&#39;</span> <span class="o">=</span> <span class="nv">OH</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Origin-Realm&#39;</span> <span class="o">=</span> <span class="nv">OR</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Session-Id&#39;</span> <span class="o">=</span> <span class="nv">Id</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Type&#39;</span> <span class="o">=</span> <span class="nv">RecType</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Number&#39;</span> <span class="o">=</span> <span class="nv">RecNum</span>
+</span><span class='line'>
+</span><span class='line'>                <span class="p">},</span>
+</span><span class='line'>            <span class="p">{</span><span class="n">reply</span><span class="p">,</span> <span class="nv">Ans</span><span class="p">}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here we handle only the Accounting-Request (ACR). In reality, this will be the place to invoke the &#8220;accounting&#8221; function once we get the Aggregation module ready (it will be subject of the next chapter). As for now, we simply replay with &#8220;DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS&#8221;. There are plenty of other requests we have to handle, but as the purpose of this article is just to show some examples, I&#8217;ll live the rest to the readers. As you see the other diameter_app functions just return &#8220;Unexpected Error&#8221;.</p>
+
+<p>We have all the pieces needed to run the server, but there is few tweaks left before we get a working erlang applications.</p>
+
+<p>First, add &#8220;diameter&#8221; application in the application resource file:</p>
+
+<figure class='code'><figcaption><span>diaserver.app.src</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="p">{</span><span class="n">application</span><span class="p">,</span> <span class="n">diaserver</span><span class="p">,</span>
+</span><span class='line'> <span class="p">[</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">description</span><span class="p">,</span> <span class="s">&quot;&quot;</span><span class="p">},</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">vsn</span><span class="p">,</span> <span class="s">&quot;0.1.0&quot;</span><span class="p">},</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">registered</span><span class="p">,</span> <span class="p">[]},</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">applications</span><span class="p">,</span> <span class="p">[</span>
+</span><span class='line'>                  <span class="n">kernel</span><span class="p">,</span>
+</span><span class='line'>                  <span class="n">stdlib</span><span class="p">,</span>
+</span><span class='line'>                  <span class="n">diameter</span>
+</span><span class='line'>                 <span class="p">]},</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">mod</span><span class="p">,</span> <span class="p">{</span> <span class="n">diaserver_app</span><span class="p">,</span> <span class="p">[]}},</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">env</span><span class="p">,</span> <span class="p">[]}</span>
+</span><span class='line'> <span class="p">]}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p> This will run diameter application on server startup. We can now remove the diameter:start() call from the diameter_srv.</p>
+
+<p> Our server itself, will be started by the supervisor, thus, we have to write the supervisor&#8217;s &#8220;Child Specification&#8221;. It will look like this:</p>
+
+<figure class='code'><figcaption><span>server supervisor&#8217;s ChildSpec</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'>     <span class="nv">DiaServer</span> <span class="o">=</span> <span class="p">{</span><span class="n">diaserver</span><span class="p">,{</span><span class="n">diameter_srv</span><span class="p">,</span><span class="n">start_link</span><span class="p">,[]},</span>
+</span><span class='line'>                 <span class="n">permanent</span><span class="p">,</span>
+</span><span class='line'>                 <span class="mi">5000</span><span class="p">,</span>
+</span><span class='line'>                 <span class="n">worker</span><span class="p">,</span>
+</span><span class='line'>                 <span class="p">[</span><span class="n">server_cb</span><span class="p">]}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The whole supervisor&#8217;s init():</p>
+
+<figure class='code'><figcaption><span>server supervisor diaserver_sup.erl</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">init</span><span class="p">([])</span> <span class="o">-&gt;</span>
+</span><span class='line'>        <span class="nv">DiaServer</span> <span class="o">=</span> <span class="p">{</span><span class="n">diaserver</span><span class="p">,{</span><span class="n">diameter_srv</span><span class="p">,</span><span class="n">start_link</span><span class="p">,[]},</span>
+</span><span class='line'>                     <span class="n">permanent</span><span class="p">,</span>
+</span><span class='line'>                     <span class="mi">5000</span><span class="p">,</span>
+</span><span class='line'>                     <span class="n">worker</span><span class="p">,</span>
+</span><span class='line'>                     <span class="p">[</span><span class="n">server_cb</span><span class="p">]},</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="p">{</span> <span class="p">{</span><span class="n">one_for_one</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">},</span> <span class="p">[</span><span class="nv">DiaServer</span><span class="p">]}</span> <span class="p">}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In rebar.config erl_opts, add the location of diameter header files. Your final configuration should be similar to:</p>
+
+<figure class='code'><figcaption><span>rebar.config</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="p">{</span><span class="n">lib_dirs</span><span class="p">,</span> <span class="p">[]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">erl_first_files</span><span class="p">,</span> <span class="p">[]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">erl_opts</span><span class="p">,</span> <span class="p">[{</span><span class="n">i</span><span class="p">,</span><span class="s">&quot;include&quot;</span><span class="p">},{</span><span class="n">i</span><span class="p">,</span> <span class="s">&quot;/usr/local/lib/erlang/lib/diameter-0.9/include&quot;</span><span class="p">},</span> <span class="p">{</span><span class="n">src_dirs</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;src&quot;</span><span class="p">]}]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">erlydtl_opts</span><span class="p">,</span> <span class="p">[]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">cover_enabled</span><span class="p">,</span> <span class="n">true</span><span class="p">}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">clean_files</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;ebin/*.beam&quot;</span><span class="p">,</span> <span class="s">&quot;priv/log/*&quot;</span><span class="p">,</span> <span class="s">&quot;rel/*&quot;</span><span class="p">]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">target</span><span class="p">,</span> <span class="s">&quot;rel&quot;</span><span class="p">}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">app_bin</span><span class="p">,</span> <span class="p">[]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">deps_dir</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;deps&quot;</span><span class="p">]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">deps</span><span class="p">,</span> <span class="p">[]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">edoc_opts</span><span class="p">,</span> <span class="p">[{</span><span class="n">doclet</span><span class="p">,</span> <span class="n">edown_doclet</span><span class="p">}]}.</span>
+</span><span class='line'><span class="p">{</span><span class="n">sub_dirs</span><span class="p">,</span> <span class="p">[]}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The last step is to compile the application:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>./rebar compile
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And we are done with the server.</p>
+
+<p>Now, go to the project&#8217;s root directory and copy rebar executable there. What we are going to do is to create Erlang &#8220;executable&#8221;:</p>
+
+<p>Run the following commands:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkdir rel
+</span><span class='line'><span class="nb">cd </span>rel
+</span><span class='line'> ../rebar create-node <span class="nv">nodeid</span><span class="o">=</span><span class="nv">diaserver</span>
+</span><span class='line'> <span class="o">==</span>&gt; rel <span class="o">(</span>create-node<span class="o">)</span>
+</span><span class='line'>Writing reltool.config
+</span><span class='line'>Writing files/erl
+</span><span class='line'>Writing files/nodetool
+</span><span class='line'>Writing files/diaserver
+</span><span class='line'>Writing files/sys.config
+</span><span class='line'>Writing files/vm.args
+</span><span class='line'>Writing files/diaserver.cmd
+</span><span class='line'>Writing files/start_erl.cmd
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The above will create Erlang node release configuration.</p>
+
+<p>Almost done, but first we have to edit the reltool.config, which was just created by the rebar:</p>
+
+<ul>
+<li>put our &#8220;diaserver&#8221; application directory in the &#8220;lib_dirs&#8221;:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'> <span class="o">{</span>lib_dirs, <span class="o">[</span><span class="s2">&quot;../apps&quot;</span>,<span class="s2">&quot;../apps/diaserver&quot;</span><span class="o">]}</span>,
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<ul>
+<li>add &#8220;diameter&#8221; and &#8220;diaserver&#8221; applications in the list of modules needed by the release:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'> <span class="o">{</span>rel, <span class="s2">&quot;diaserver&quot;</span>, <span class="s2">&quot;1&quot;</span>,
+</span><span class='line'>        <span class="o">[</span>
+</span><span class='line'>         kernel,
+</span><span class='line'>         stdlib,
+</span><span class='line'>         sasl,
+</span><span class='line'>         diameter,
+</span><span class='line'>         diaserver
+</span><span class='line'>        <span class="o">]}</span>,
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>remove {incl_cond, exclude} clause. incl_cond=&#8221;derived&#8221; will be used as defauld, which means that Reltool will include applications that it detects can be used by any applications in the &#8220;rel&#8221; tuple.</li>
+</ul>
+
+
+<p>Full reltool.config should be similar to:</p>
+
+<figure class='code'><figcaption><span>reltool.config</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="o">{</span>sys, <span class="o">[</span>
+</span><span class='line'>       <span class="o">{</span>lib_dirs, <span class="o">[</span><span class="s2">&quot;../apps&quot;</span>,<span class="s2">&quot;../apps/diaserver&quot;</span><span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>erts, <span class="o">[{</span>mod_cond, derived<span class="o">}</span>, <span class="o">{</span>app_file, strip<span class="o">}]}</span>,
+</span><span class='line'>       <span class="o">{</span>app_file, strip<span class="o">}</span>,
+</span><span class='line'>       <span class="o">{</span>rel, <span class="s2">&quot;diaserver&quot;</span>, <span class="s2">&quot;1&quot;</span>,
+</span><span class='line'>        <span class="o">[</span>
+</span><span class='line'>         kernel,
+</span><span class='line'>         stdlib,
+</span><span class='line'>         sasl,
+</span><span class='line'>         diameter,
+</span><span class='line'>         diaserver
+</span><span class='line'>        <span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>rel, <span class="s2">&quot;start_clean&quot;</span>, <span class="s2">&quot;&quot;</span>,
+</span><span class='line'>        <span class="o">[</span>
+</span><span class='line'>         kernel,
+</span><span class='line'>         stdlib
+</span><span class='line'>        <span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>boot_rel, <span class="s2">&quot;diaserver&quot;</span><span class="o">}</span>,
+</span><span class='line'>       <span class="o">{</span>profile, embedded<span class="o">}</span>,
+</span><span class='line'>       <span class="o">{</span>excl_archive_filters, <span class="o">[</span><span class="s2">&quot;.*&quot;</span><span class="o">]}</span>, %% Do not archive built libs
+</span><span class='line'>       <span class="o">{</span>excl_sys_filters, <span class="o">[</span><span class="s2">&quot;^bin/.*&quot;</span>, <span class="s2">&quot;^erts.*/bin/(dialyzer|typer)&quot;</span>,
+</span><span class='line'>                           <span class="s2">&quot;^erts.*/(doc|info|include|lib|man|src)&quot;</span><span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>excl_app_filters, <span class="o">[</span><span class="s2">&quot;\.gitignore&quot;</span><span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>app, sasl,   <span class="o">[{</span>incl_cond, include<span class="o">}]}</span>,
+</span><span class='line'>       <span class="o">{</span>app, stdlib, <span class="o">[{</span>incl_cond, include<span class="o">}]}</span>,
+</span><span class='line'>       <span class="o">{</span>app, kernel, <span class="o">[{</span>incl_cond, include<span class="o">}]}</span>,
+</span><span class='line'>       <span class="o">{</span>app, diaserver, <span class="o">[{</span>incl_cond, include<span class="o">}]}</span>
+</span><span class='line'>      <span class="o">]}</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">{</span>target_dir, <span class="s2">&quot;diaserver&quot;</span><span class="o">}</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">{</span>overlay, <span class="o">[</span>
+</span><span class='line'>           <span class="o">{</span>mkdir, <span class="s2">&quot;log/sasl&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/erl&quot;</span>, <span class="s2">&quot;\{\{erts_vsn\}\}/bin/erl&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/nodetool&quot;</span>, <span class="s2">&quot;\{\{erts_vsn\}\}/bin/nodetool&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/diaserver&quot;</span>, <span class="s2">&quot;bin/diaserver&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/sys.config&quot;</span>, <span class="s2">&quot;releases/\{\{rel_vsn\}\}/sys.config&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/diaserver.cmd&quot;</span>, <span class="s2">&quot;bin/diaserver.cmd&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/start_erl.cmd&quot;</span>, <span class="s2">&quot;bin/start_erl.cmd&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/vm.args&quot;</span>, <span class="s2">&quot;releases/\{\{rel_vsn\}\}/vm.args&quot;</span><span class="o">}</span>
+</span><span class='line'>          <span class="o">]}</span>.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Back in the top directory, we need a simple rebar.config file:</p>
+
+<figure class='code'><figcaption><span>rebar.config</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="o">{</span>sub_dirs, <span class="o">[</span><span class="s2">&quot;apps/diaserver&quot;</span>,
+</span><span class='line'>            <span class="s2">&quot;rel&quot;</span><span class="o">]}</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">{</span>erl_opts, <span class="o">[</span>debug_info<span class="o">]}</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">{</span>lib_dirs, <span class="o">[</span><span class="s2">&quot;apps&quot;</span>, <span class="s2">&quot;deps&quot;</span><span class="o">]}</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">{</span>deps, <span class="o">[]}</span>.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Execute:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$.</span>/rebar generate
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>At this point, if everything went well, you should have a working Erlang application. Let&#8217;s try it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>./rel/diaserver/bin/diaserver start
+</span><span class='line'><span class="nv">$ </span>./rel/diaserver/bin/diaserver ping
+</span><span class='line'>pong
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>It is running, but is it capable to serve Diameter requests? We need a client to test this. I&#8217;m going to use the one provided in Diameter library&#8217;s <a href="https://github.com/erlang/otp/tree/master/lib/diameter/examples/code">examples</a>, but I need to implement Accounting Request first. Just add the following code to client.erl:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">call_ACR</span><span class="p">()</span> <span class="o">-&gt;</span>
+</span><span class='line'>        <span class="n">call_ACR</span><span class="p">(</span><span class="no">?SVC_NAME</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">call_ACR</span><span class="p">(</span><span class="nv">Name</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>        <span class="nv">SId</span> <span class="o">=</span> <span class="nn">diameter</span><span class="p">:</span><span class="n">session_id</span><span class="p">(</span><span class="no">?L</span><span class="p">(</span><span class="nv">Name</span><span class="p">)),</span>
+</span><span class='line'>        <span class="nv">ACR</span> <span class="o">=</span> <span class="nl">#diameter_base_ACR</span><span class="p">{</span><span class="n">&#39;Session-Id&#39;</span> <span class="o">=</span> <span class="nv">SId</span><span class="p">,</span>
+</span><span class='line'>                                 <span class="n">&#39;Accounting-Record-Type&#39;</span> <span class="o">=</span> <span class="no">?&#39;DIAMETER_BASE_ACCOUNTING-RECORD-TYPE_EVENT_RECORD&#39;</span><span class="p">,</span>
+</span><span class='line'>                                 <span class="n">&#39;Accounting-Record-Number&#39;</span> <span class="o">=</span> <span class="mi">1</span><span class="p">},</span>
+</span><span class='line'>        <span class="nn">diameter</span><span class="p">:</span><span class="n">call</span><span class="p">(</span><span class="nv">Name</span><span class="p">,</span> <span class="n">client_base_app</span><span class="p">,</span> <span class="nv">ACR</span><span class="p">,</span> <span class="p">[]).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>and change the client_cb.erl function &#8220;prepare_request&#8221; to:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">prepare_request</span><span class="p">(</span><span class="nl">#diameter_packet</span><span class="p">{</span><span class="n">msg</span> <span class="o">=</span> <span class="nv">Rec</span><span class="p">}</span> <span class="o">=</span> <span class="nv">Pkt</span><span class="p">,</span> <span class="p">_,</span> <span class="p">{_,</span> <span class="nv">Caps</span><span class="p">})</span> <span class="o">-&gt;</span>
+</span><span class='line'>    <span class="nl">#diameter_caps</span><span class="p">{</span><span class="n">origin_host</span> <span class="o">=</span> <span class="p">{</span><span class="nv">OH</span><span class="p">,</span> <span class="nv">DH</span><span class="p">},</span>
+</span><span class='line'>                   <span class="n">origin_realm</span> <span class="o">=</span> <span class="p">{</span><span class="nv">OR</span><span class="p">,</span> <span class="nv">DR</span><span class="p">}}</span>
+</span><span class='line'>        <span class="o">=</span> <span class="nv">Caps</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="p">{</span><span class="nb">send</span><span class="p">,</span> <span class="nv">Rec</span><span class="nl">#diameter_base_ACR</span><span class="p">{</span><span class="n">&#39;Origin-Host&#39;</span> <span class="o">=</span> <span class="nv">OH</span><span class="p">,</span>
+</span><span class='line'>                                 <span class="n">&#39;Origin-Realm&#39;</span> <span class="o">=</span> <span class="nv">OR</span><span class="p">,</span>
+</span><span class='line'>                                 <span class="n">&#39;Destination-Realm&#39;</span> <span class="o">=</span> <span class="nv">DR</span><span class="p">}}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And finally - that&#8217;s it. Compile the client, run the Erlang shell and try it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nv">Eshell</span> <span class="nv">V5</span><span class="p">.</span><span class="mi">8</span><span class="p">.</span><span class="mi">4</span>  <span class="p">(</span><span class="n">abort</span> <span class="n">with</span> <span class="err">^</span><span class="nv">G</span><span class="p">)</span>
+</span><span class='line'><span class="mi">1</span><span class="o">&gt;</span> <span class="nn">diameter</span><span class="p">:</span><span class="n">start</span><span class="p">().</span>
+</span><span class='line'><span class="n">ok</span>
+</span><span class='line'><span class="mi">2</span><span class="o">&gt;</span> <span class="nn">client</span><span class="p">:</span><span class="n">start</span><span class="p">().</span>
+</span><span class='line'><span class="n">ok</span>
+</span><span class='line'><span class="mi">3</span><span class="o">&gt;</span> <span class="nn">client</span><span class="p">:</span><span class="n">connect</span><span class="p">(</span><span class="n">tcp</span><span class="p">).</span>
+</span><span class='line'><span class="p">{</span><span class="n">ok</span><span class="p">,</span><span class="err">#</span><span class="nv">Ref</span><span class="o">&lt;</span><span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">.</span><span class="mi">50</span><span class="o">&gt;</span><span class="p">}</span>
+</span><span class='line'><span class="mi">4</span><span class="o">&gt;</span> <span class="nn">client</span><span class="p">:</span><span class="n">call_ACR</span><span class="p">().</span>
+</span><span class='line'><span class="p">{</span><span class="n">ok</span><span class="p">,{</span><span class="n">diameter_base_ACA</span><span class="p">,</span><span class="s">&quot;client;1400340423;1;nonode@nohost&quot;</span><span class="p">,</span>
+</span><span class='line'>                       <span class="mi">2001</span><span class="p">,</span><span class="s">&quot;diameter_srv.example.com&quot;</span><span class="p">,</span><span class="s">&quot;example.com&quot;</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,[],[],[],</span>
+</span><span class='line'>                       <span class="p">[],[],[],[],[],[],[],[],[],[]}}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We happily got an Accounting-Answer(ACA) Diameter response :-)</p>
+
+<p>Well, at this moment we can handle just one command, but implementing the rest of the &#8220;Diameter Base Application&#8221; spec shouldn&#8217;t be much of a problem with everything we&#8217;ve done so far.</p>
+
+<p>You can find the source code in github: <a href="https://github.com/vascokk/diameter-test/tree/master/erlang-rts-part-1">https://github.com/vascokk/diameter-test</a></p>
+
+<p>In the next article I&#8217;ll start with the implementation of the Aggregation module. See ya!</p>
+
+<h2>Credits</h2>
+
+<p>Susan Potter for the rebar <a href="https://github.com/mbbx6spp/rebar-templates">templates</a></p>
+
+<p>Frederic Trottier-Hebert for the amazing <a href="http://learnyousomeerlang.com/">&#8220;Learn You Some Erlang&#8221;</a> book</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang Real Time Server - Introduction]]></title>
+    <link href="http://vascokk.github.com/blog/2012/05/11/erlang-real-time-server-introduction/"/>
+    <updated>2012-05-11T19:53:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/05/11/erlang-real-time-server-introduction</id>
+    <content type="html"><![CDATA[<p>Erlang RTS - Introduction</p>
+
+<p>What I am planning to do is a &#8216;pet project&#8217; utilising my new passion - functional programing in Erlang. In this project I&#8217;ll sketch some ideas for a telecom &#8220;Online Charging System&#8221;(OCS). I have no intention to implement a real OCS as defined in the 3GPP specifications. It will be just a small part of what is more popular in non-3GPP world as a &#8220;Real Time Server&#8221; (RTS).</p>
+
+<p>&#8220;WTF is a RTS?&#8221; - you are asking. Well, when it comes to the Billing System domain, this is a piece of software, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the part of the system which grants you access to and charges for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc.</p>
+
+<p>The basic parts of the usual RTS are:</p>
+
+<ul>
+<li>AAA protocol server, which will receive the AAA requests.</li>
+<li>A module, I will call it &#8220;Aggregation module&#8221;, which purpose is to calculate the answers (for those of you familiar with the 3GPP - it is somewat combined Account Balance Management Function (ABMF) and Rating Function (RF) ) .</li>
+</ul>
+
+
+<p>The AAA protocol is an important part. If you have ever heard about &#8216;RADIUS&#8217; - that&#8217;s it. It is a protocol widely used in ISPs and VoIP operators. What I am planning to use, however, is the RADIUS successor - Diameter. Partially, because the standard Erlang distribution has a Diameter library and partially, because I want to learn more about Diameter.</p>
+
+<p>The second part, which is even more interesting - the Aggregation - is the place where all the calculations will be done. For example - if you want to watch a film on demand or make a voice/video call the system has to check whether you have enough money on your balance and will grant or not access to the service - that&#8217;s the &#8216;authorization&#8217; part. After the end of the call it will calculate the amount to deduct from your balance, depending on the time you spent talking and the destination (local or international call, etc.). That&#8217;s the &#8216;accounting&#8217; part. Since there can be between hunderds and millions (if you are someone like AT&amp;T :-)  ) of subscribers, simultaneously using your services, the system has to be scalable. By &#8216;scalable&#8217; I mean - painlessly adding a new Aggregation module with a minimum effort. It looks like Riak would fit this purpose perfectly.</p>
+
+<p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert&#8217;s <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, as my expirience in Erlang, Diameter and Riak is relatively small, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
+
+<p>Now, let&#8217;s go to the first part of our <a href="http://vas.io/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">&#8220;Erlang RTS&#8221; project</a></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[The first one]]></title>
+    <link href="http://vascokk.github.com/blog/2012/05/10/the-first-one/"/>
+    <updated>2012-05-10T23:00:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/05/10/the-first-one</id>
+    <content type="html"><![CDATA[<h2>A Word From The Author</h2>
+
+<p>Hello all!</p>
+
+<p>This is the second attempt to start a blog. This time my intention is to create a &#8216;working blog&#8217;. Here I will write about the new stuff I&#8217;m learning in programming and the reason to start this is because trying to explain something is the best way to learn. To quote <a href="http://blogs.msdn.com/b/ericlippert/">Eric Lippert</a>:</p>
+
+<blockquote><p>Writing a blog is also tremendously helpful; by requiring me to explain complex topics to other people, I am forced to confront my own inadequate understanding of various topics all the time.</p></blockquote>
+
+
+<p>So, for me it will be just a learning tool. If someone else finds it useful - that would be a bonus.</p>
+]]></content>
+  </entry>
+  
+</feed>
