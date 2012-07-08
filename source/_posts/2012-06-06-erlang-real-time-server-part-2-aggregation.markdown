@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Erlang-real-time-server-part-2-aggregation"
+title: "Erlang Real Time Server - Part 2 - Aggregation"
 date: 2012-06-06 18:39
 comments: true
 categories: Erang Diameter Riak rebar RiakCore

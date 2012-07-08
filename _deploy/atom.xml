@@ -4,7 +4,7 @@
   <title><![CDATA[Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-08T15:33:35+01:00</updated>
+  <updated>2012-07-08T15:43:11+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -14,7 +14,7 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Erlang-real-time-server-part-2-aggregation]]></title>
+    <title type="html"><![CDATA[Erlang Real Time Server - Part 2 - Aggregation]]></title>
     <link href="http://vascokk.github.com/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/"/>
     <updated>2012-06-06T18:39:00+01:00</updated>
     <id>http://vascokk.github.com/blog/2012/06/06/erlang-real-time-server-part-2-aggregation</id>
