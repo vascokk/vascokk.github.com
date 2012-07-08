@@ -4,7 +4,7 @@
   <title><![CDATA[Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-08T15:43:11+01:00</updated>
+  <updated>2012-07-08T15:48:50+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -318,6 +318,8 @@
 
 
 <p>Hey, distributed unicorns! :)</p>
+
+<p>Now, we can change the aggregation() command to our needs or create any other command we need to call from the Diameter server.</p>
 
 <h2>Credits</h2>
 
