@@ -1,0 +1,928 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Diameter | Reinventing The Wheel]]></title>
+  <link href="http://vascokk.github.com/blog/categories/diameter/atom.xml" rel="self"/>
+  <link href="http://vascokk.github.com/"/>
+  <updated>2012-07-08T15:36:40+01:00</updated>
+  <id>http://vascokk.github.com/</id>
+  <author>
+    <name><![CDATA[Vasco Kolarov]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang-real-time-server-part-2-aggregation]]></title>
+    <link href="http://vascokk.github.com/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/"/>
+    <updated>2012-06-06T18:39:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/06/06/erlang-real-time-server-part-2-aggregation</id>
+    <content type="html"><![CDATA[<h2>High level overview of the RTS</h2>
+
+<p>In a schematic view, the RTS will look like this:</p>
+
+<p><img src="/images/rts-part-2/RTS1.png" alt="" /></p>
+
+<p>The idea here is: As a result of Diameter request, command on Aggregation module will be invoked (e.g. "accounting()"). As the job, usually performed by this module is computationally intensive, the Aggregation will run on a Riak cluster and the command will be executed within this cluster.</p>
+
+<h2>Setting up a Riak cluster (or  "A very lame introduction to Riak")</h2>
+
+<p>Setting up a cluster could be a tedious job. Fortunately, there are always some giant's shoulders you can step on*. In this case I will use the Ryan Zezeski's RiakCore rebar <a href="https://github.com/rzezeski/rebar_riak_core">templates</a></p>
+
+<p>Once you clone the templates repository from GitHub, make a new Erlang application directory in <em>apps</em> and run <em>rebar</em> from it:</p>
+
+<p><code>bash
+&lt;project_root&gt; $ ./mkdir apps/aggregation
+&lt;project_root&gt; $ cd apps/aggregation
+&lt;project_root&gt;/apps/aggregation $ ../../rebar -f create template=riak_core_multinode appid=aggregation nodeid=aggregation
+</code></p>
+
+<p>With this run correctly, you should have the following files in the application's <em>src</em> directory:</p>
+
+<p><code>bash
+aggregation_app.erl
+aggregation.app.src
+aggregation_console.erl
+aggregation.erl
+aggregation.hrl
+aggregation_node_event_handler.erl
+aggregation_ring_event_handler.erl
+aggregation_sup.erl
+aggregation_vnode.erl
+</code></p>
+
+<p>What you are looking at is an application, which will start the Riak's working horse - the vnode. The vnode ("virtual node") is the building block of the Riak cluster. Riak itself is heavily influenced by Amazon's Dynamo paper - <a href="http://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf">"Dynamo: Amazon’s Highly Available Key-value Store"</a>. It is worth reading, but if you are not in an "academic mood" right now, here are some highlights:</p>
+
+<ul>
+<li>Riak is a distributed, highly scalable, key-value store</li>
+<li>Riak is usually deployed on a cluster (set of physical hosts called "nodes")</li>
+<li>each node runs a certain number of "virtual nodes" (or "vnodes")</li>
+<li>the vnode is responsible for a partition of the Riak "Ring"</li>
+<li>the Ring is a circular, ordered, 160 bit integer space (i.e. integers from 0 to 2<sup>160</sup> placed in circle)</li>
+<li>each element of the Ring represents a hash value computed of the key from a "key-value" pair (in fact it will be computed of the "bucket"+"key", but this is not so important at the moment)</li>
+<li>the number of partitions is always the same, whether you add a new node to the Cluster or take one off (i.e. a bit of a planning is needed upfront)</li>
+<li>the vnode can be used to store data or to perform computations (executing commands)</li>
+</ul>
+
+
+<p>I'll not go further into details, as <a href="http://wiki.basho.com">wiki.basho.com</a> is your best source of information, if you want to dive in. I'll just outline the "scalability" thing and how Riak will make our life easier:</p>
+
+<p>As you see in the second bullet from the bottom - the number of partitions is constant. It is set in the app.config's ring_creation_size parameter. Default number is 64 and there is no formal way to calculate it. It would be more or less empirically set by the developer. According to the Riak's wiki - for a mid-sized cluster of 8 to 16 nodes, the number should be between 128 and 512 partitions (always a power of 2), but this is definitely not "set on stone". Let's assume that we have set the optimal ring size already. At some point of time when the system is fully operational, we might need more computational power. Then, what we should do is:</p>
+
+<ol>
+<li>Deploy the application on a new node.</li>
+<li>"join" (one-line command) the new one to a randomly chosen node from the cluster (you can really pick any member, there is no "master node").</li>
+<li>....Wait...there is no 3rd... :)</li>
+</ol>
+
+
+<p>The new node will automatically claim a certain number of partitions, offloading the other nodes. Under the hood, Riak will use "handoff" procedures, "Gossip" protocol and other magics to do the job. What is important to us is that, due to the "consistent hashing" (more on this in some other article), the relocation of the vnodes will be transparent to the application(s) using the Riak cluster, as all the hash values are still on the same vnodes, even though, some of the vnodes are now residing on a different physical host. Cool, isn't it? The bottom line is: Scaling by adding a new host to the cluster is dead simple, but it will relocate a number of vnodes - not add new ones. So, be careful when you plan your Ring size.</p>
+
+<p>generated rebar.conf:
+``` erlang
+%% -<em>- erlang -</em>-
+{sub_dirs, ["rel", "apps/aggregation"]}.
+{cover_enabled, true}.
+{erl_opts, [debug_info, warnings_as_errors]}.
+{edoc_opts, [{dir, "../../doc"}]}.
+{deps, [{riak_core, "HEAD",</p>
+
+<pre><code>     {git, "https://github.com/basho/riak_core", {"HEAD"}}}
+   ]}.
+</code></pre>
+
+<p>```</p>
+
+<p>changed rebar.conf:</p>
+
+<p>``` erlang
+%% -<em>- erlang -</em>-
+{sub_dirs, ["rel", "apps/aggregation"]}.
+{cover_enabled, true}.
+{erl_opts, [debug_info, warnings_as_errors]}.
+{edoc_opts, [{dir, "../../doc"}]}.
+{deps, [{riak_core, "1.1.2",</p>
+
+<pre><code>     {git, "https://github.com/basho/riak_core", {"1.1.2"}}}
+   ]}.
+</code></pre>
+
+<p>{lib_dirs, ["apps", "deps"]}.
+```</p>
+
+<p>and compile:</p>
+
+<p>``` bash
+<project_root>/erlang-rts-part-2 $ ./rebar compile
+==> lager (compile)
+==> poolboy (compile)
+==> protobuffs (compile)
+==> basho_stats (compile)
+==> riak_sysmon (compile)
+==> mochiweb (compile)
+==> webmachine (compile)
+==> riak_core (compile)
+==> rel (compile)
+==> aggregation (compile)
+Compiled src/aggregation_sup.erl
+Compiled src/aggregation_node_event_handler.erl
+Compiled src/aggregation_app.erl
+Compiled src/aggregation_console.erl
+Compiled src/aggregation.erl
+Compiled src/aggregation_vnode.erl
+Compiled src/aggregation_ring_event_handler.erl
+==> erlang-rts-part-2 (compile)</p>
+
+<p>```</p>
+
+<h2>Create release nodes</h2>
+
+<p>At this moment <em>rel</em> directory should contain the <em>aggregation</em> release configuration file. Because we have 2 applications (<em>diaserver</em> and <em>aggregation</em>) I'll put them in separate <em>rel</em> subdirectories.</p>
+
+<p>First, create <em>aggregation</em> sub-directory and move the content of <em>rel</em> there. Next, edit the second line of reltool.config to match the directory structure:</p>
+
+<p>``` bash
+ {lib_dirs, ["../../apps/", "../../apps/aggregation/", "../../deps/"]},</p>
+
+<p>```</p>
+
+<p>Create the diaserver node (the same way as in Part1, only in different directory):</p>
+
+<p><code>bash
+mkdir diaserver
+cd diaserver
+rel/diaserver $ ../../rebar create-node nodeid=diaserver
+==&gt; diaserver (create-node)
+Writing reltool.config
+Writing files/erl
+Writing files/nodetool
+Writing files/diaserver
+Writing files/sys.config
+Writing files/vm.args
+Writing files/diaserver.cmd
+Writing files/start_erl.cmd
+</code></p>
+
+<p>Edit reltool.config the in the way already described in Part1.</p>
+
+<p>Create 2 aggregation release nodes. They will work on different ports and we will be able to run them on the same physical host. This way we will simulate a 2-host Riak cluster:</p>
+
+<p>``` bash
+erlang-rts-part-2/rel/aggregation $ ../../rebar generate target_dir=./dev/dev1 overlay_vars=vars/dev1.config appid=aggregation
+==> aggregation (generate)
+erlang-rts-part-2/rel/aggregation $ ../../rebar generate target_dir=./dev/dev2 overlay_vars=vars/dev2.config appid=aggregation
+==> aggregation (generate)</p>
+
+<p>```</p>
+
+<p>Now, let's test the Riak cluster. Open a terminal and start the first node:</p>
+
+<p>``` bash First console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev1/bin/aggregation console</p>
+
+<p>Exec: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/erts-5.8.4/bin/erlexec -boot /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/releases/1/aggregation -embedded -config /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/etc/app.config -args_file /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/etc/vm.args -- console
+Root: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1
+Erlang R14B03 (erts-5.8.4) [source] [rq:1] [async-threads:5] [hipe] [kernel-poll:true]</p>
+
+<p>=INFO REPORT==== 21-Jun-2012::21:44:19 ===</p>
+
+<pre><code>alarm_handler: {set,{{disk_almost_full,"/"},[]}}
+</code></pre>
+
+<p>** Found 0 name clashes in code paths
+21:44:20.142 [info] Application lager started on node 'aggregation1@127.0.0.1'
+21:44:20.236 [warning] No ring file available.
+21:44:20.237 [info] Application riak_core started on node 'aggregation1@127.0.0.1'
+21:44:20.249 [info] Waiting for application aggregation to start (0 seconds).
+21:44:20.254 [info] Application aggregation started on node 'aggregation1@127.0.0.1'
+Eshell V5.8.4  (abort with ^G)
+(aggregation1@127.0.0.1)1> 21:44:20.351 [info] Wait complete for application aggregation (0 seconds)</p>
+
+<p>```</p>
+
+<p>We have the first node 'aggregation1@127.0.0.1' running.</p>
+
+<p>Open a second terminal window, start the second node and join it to the first one:</p>
+
+<p>``` bash Second console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation start
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation-admin join aggregation1@127.0.0.1</p>
+
+<p>Sent join request to aggregation1@127.0.0.1
+```</p>
+
+<p>Attach to the running second node and call aggregation:ping() few times. The result in my case is:</p>
+
+<p><code>bash Second console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation attach
+Attaching to /tmp//home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev2/erlang.pipe.1 (^D to exit)
+(aggregation2@127.0.0.1)1&gt; aggregation:ping().
+Ping received by node : 'aggregation2@127.0.0.1'
+{pong,479555224749202520035584085735030365824602865664}
+(aggregation2@127.0.0.1)2&gt; aggregation:ping().
+{pong,639406966332270026714112114313373821099470487552}
+(aggregation2@127.0.0.1)3&gt;
+</code></p>
+
+<p>As you see, the first invocation of ping() is received by the second node: "Ping received by node : 'aggregation2@127.0.0.1'". The second ping(), however, did not print anything. If we open the first console, we'll see:</p>
+
+<p><code>bash First console
+21:45:23.394 [info] 'aggregation2@127.0.0.1' joined cluster with status 'valid'
+Ping received by node : 'aggregation1@127.0.0.1'
+</code></p>
+
+<p>Hey, distributed unicorns! :)</p>
+
+<h2>Credits</h2>
+
+<p>Ryan Zezeski for the Riak <a href="https://github.com/rzezeski/try-try-try">tutorial</a> and rebar <a href="https://github.com/rzezeski/rebar_riak_core">templates</a></p>
+
+<h2>References</h2>
+
+<p>(*) <a href="http://en.wikipedia.org/wiki/Standing_on_the_shoulders_of_giants">"Standing on the shoulders of giants"</a></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang Real Time Server - Part 1 - Diameter Server]]></title>
+    <link href="http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/"/>
+    <updated>2012-05-13T18:32:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server</id>
+    <content type="html"><![CDATA[<h2>Diameter Basics</h2>
+
+<p>The <a href="http://en.wikipedia.org/wiki/Diameter_(protocol)">Diameter</a> protocol is defined by <a href="http://tools.ietf.org/html/rfc3588">RFC 3588</a>, and defines the minimum requirements for an AAA protocol. The best way to build up some knowledge in Diameter is to read the RFC first. At the end of the Wikipedia article there are also a bunch of links to good introductory articles. Anyway, few very basic points:</p>
+
+<ul>
+<li>There are several types of Diameter nodes - Client, Server, Relay, Proxy (we will focus only on the first two)</li>
+<li>Diameter nodes communicate with "commands";</li>
+<li>Clients send a given command as "Request" and the server replays with the same command as "Answer", e.g. Accounting-Request and Accounting-Answer - both will have the same command code (271), but in the case of the Client the 'Command Flags' 'R' bit will be set;</li>
+<li>Each command has a predefined set of attributes. If there is a need for additional attributes, they can be specified as "Vendor Specific Attribute Value Pairs" (or AVPs for short);</li>
+<li>RFC 3588 defines the basic set of AAA commands. Additional commands are defined in Diameter extensions called "Applications". Don't confuse them with the usual software applications (blame the Diameter creators for the poor choice of word here :), they are just declarative specifications (or 'contracts').</li>
+</ul>
+
+
+<h2>Diameter in Erlang</h2>
+
+<p>Among the other great things Erlang contains a Diameter library. This library has two important modules - diameter and diameter_app. With the help of the first one we can create a Diameter service, which receives and sends commands. The second one - diameter_app - is the callback module for the service started with the first. Please, note that I am using 'Diameter' to denote the protocol and 'diameter' for the Erlang module.</p>
+
+<p>I will not explain this part in details as it is better to take a look at the exelent example provided by Erlang creators inside the Diameter lib <a href="https://github.com/erlang/otp/tree/master/lib/diameter/examples/code">source</a>. Just a couple of important things:</p>
+
+<p>How to start the service:</p>
+
+<p>``` erlang
+start() -></p>
+
+<pre><code>    SvcName = ?MODULE,
+    SvcOpts = [{'Origin-Host', atom_to_list(SvcName) ++ ".example.com"},
+                    {'Origin-Realm', "example.com"},
+                    {'Vendor-Id', 193},
+                    {'Product-Name', "Server"},
+                    {'Auth-Application-Id', [?DIAMETER_APP_ID_COMMON]},
+                    {application, [{alias, diameter_base_app},
+                                   {dictionary, ?DIAMETER_DICT_COMMON},
+                                   {module, server_cb}]}],
+    TransportOpts =  [{transport_module, diameter_tcp},
+                                    {transport_config, [{reuseaddr, true},
+                                    {ip, {127,0,0,1}}, {port, 3868}]}],
+    diameter:start(),
+    diameter:start_service(SvcName, SvcOpts),
+    diameter:add_transport(SvcName, {listen, TransportOpts}).
+</code></pre>
+
+<p>```</p>
+
+<p>There are few things to be mentioned here:</p>
+
+<ul>
+<li>Service - the service will usually implement a given Diameter Application.</li>
+<li>?DIAMETER_APP_ID_COMMON and ?DIAMETER_DICT_COMMON are defined in diameter.hrl</li>
+<li>server_cb (line 10) will be our diameter callback module (implementation of diameter_app)</li>
+</ul>
+
+
+<p>diameter_cb will handle Diameter requests. An example function, which handles "Accounting-Request" command (code=271) is given below:</p>
+
+<p>``` erlang
+handle_request(#diameter_packet{msg = Req, errors = []}, <em>SvcName, {</em>, Caps})</p>
+
+<pre><code>              when is_record(Req, diameter_base_ACR) -&gt;
+
+        #diameter_caps{origin_host = {OH,_},
+                       origin_realm = {OR,_}}
+            = Caps,
+
+        #diameter_base_ACR{'Session-Id' = Id,
+                           'Accounting-Record-Type' = RecType,
+                           'Accounting-Record-Number' = RecNum,
+                           'Acct-Application-Id' = AccAppId }
+            = Req,
+
+        Ans = #diameter_base_ACA{'Result-Code' = ?'DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS',
+                                 'Origin-Host' = OH,
+                                 'Origin-Realm' = OR,
+                                 'Session-Id' = Id,
+                                 'Accounting-Record-Type' = RecType,
+                                 'Accounting-Record-Number' = RecNum},
+        {reply, Ans};
+</code></pre>
+
+<p>```</p>
+
+<p>What we have here is:</p>
+
+<ul>
+<li>get the origin host and origin realm in OH and OR from the peer's "capabilities" (Caps)</li>
+<li>get some of the request parameters like SessionId, record type, etc</li>
+<li>constructing the Accounting-Answer message as #diameter_base_ACA record</li>
+<li>reply with the answer</li>
+</ul>
+
+
+<p>Note: Base Diameter protocol (rfc3588) can be used for Accounting only. For Authentication and Authorization it must be extended with other Diameter applications, which depends on the type of the applications, e.g. Diameter Network Access Application(rfc4005) and Diameter Mobile IPv4 Application(rfc4004). In the IMS architecture for example, there are many subsystems communicating each other via different interfaces. Each interface is based on a given "Diameter Application", which has a specific set of commands.</p>
+
+<h2>Using rebar as a build tool</h2>
+
+<p>I am going to use <a href="https://github.com/basho/rebar">Basho's rebar</a> to build my application. The project will contain at least two separately deployable applications - Diameter server and Aggregation module. I'll put them in separate app directories under my project's root.</p>
+
+<p>First, create .../apps/diaserver directory under your project dir and then, copy rebar executable in "diaserver" directory.</p>
+
+<p>Now, let's create the project structure for our application. For this, we will need a project template. There are many in github. I'll use the templates generously provided by <a href="https://github.com/mbbx6spp/rebar-templates">Susan Potter</a>. Just clone the repository in your ~/.rebar/templates directory, then do:</p>
+
+<p>``` bash Create erlang project
+.../apps/diaserver $ ./rebar create template=project
+==> diaserver (create)
+Writing README
+Writing rebar.config
+Writing Emakefile
+Writing Makefile
+Writing .gitignore</p>
+
+<p>```</p>
+
+<p>Next, we will create the application files. We need 3 files: application resource file, application behavior implementation and application supervisor (see <a href="http://learnyousomeerlang.com/building-otp-applications">here</a> for a detailed explanation of OTP applications). They all will be created by rebar:</p>
+
+<p><code>bash Create application using rebar
+.../apps/diaserver $ ./rebar create-app appid=diaserver
+==&gt; diaserver (create-app)
+Writing src/diaserver.app.src
+Writing src/diaserver_app.erl
+Writing src/diaserver_sup.erl
+</code></p>
+
+<p>or alternatively, using template rtsapp.template (this is my version of Susan's finapp.template):</p>
+
+<p><code>bash Create application skeleton using rebar template
+.../apps/diaserver $ ./rebar create template=rtsapp name=diaserver
+</code></p>
+
+<p>The above are the "supplementary" files needed to create our application in terms of Erlang/OTP framework. The actual job (starting diameter server, receieving commands, etc) will be done by a gen_server module, created with the following command:</p>
+
+<p><code>bash Create gen_server module using template
+.../apps/diaserver $ ./rebar create template=gen_server name=diameter
+==&gt; diaserver (create)
+Writing src/diameter_srv.erl
+</code></p>
+
+<p>This will create a file named diameter_srv.erl in the ...apps/diaserver/src.
+Again, gen_server template here is a modified (read: "renamed and the names inside the template changed") version of finapp.template you git-cloned earlier.
+Here is what the file should look like:</p>
+
+<p>``` erlang diameter_srv.erl
+%% @author <your name> <your email>
+%% @copyright 2012 <your name>
+%% @doc gen_server callback module implementation:
+%%
+%% @end
+-module(diameter_srv).
+-author('<your name>').</p>
+
+<p>-behaviour(gen_server).</p>
+
+<p>-export([start_link/0]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2]).
+-export([code_change/3]).
+-export([stop/0, terminate/2]).</p>
+
+<p>% TODO: If unnamed server, remove definition below.
+-define(SERVER, ?MODULE).
+%%%.
+%%%'   PUBLIC API</p>
+
+<p>%% @doc starts gen_server implementation and caller links to the process too.
+-spec start_link() -> {ok, Pid} | ignore | {error, Error}
+  when</p>
+
+<pre><code>  Pid :: pid(),
+  Error :: {already_started, Pid} | term().
+</code></pre>
+
+<p>start_link() ->
+  % TODO: decide whether to name gen_server callback implementation or not.
+  % gen_server:start_link(?MODULE, [], []). % for unnamed gen_server
+  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).</p>
+
+<p>%% @doc stops gen_server implementation process
+-spec stop() -> ok.
+stop() ->
+  gen_server:cast(?SERVER, stop).</p>
+
+<p>% TODO: add more public API here...</p>
+
+<p>%%%.
+%%%'   CALLBACKS
+%% @callback gen_server
+init(State) ->
+  {ok, State}.</p>
+
+<p>%% @callback gen_server
+handle_call(<em>Req, </em>From, State) ->
+  {reply, State}.
+%% @callback gen_server
+handle_cast(stop, State) ->
+  {stop, normal, State};
+handle_cast(_Req, State) ->
+  {noreply, State}.</p>
+
+<p>%% @callback gen_server
+handle_info(_Info, State) ->
+  {noreply, State}.</p>
+
+<p>%% @callback gen_server
+code_change(<em>OldVsn, State, </em>Extra) ->
+  {ok, State}.</p>
+
+<p>%% @callback gen_server
+terminate(normal, <em>State) ->
+  ok;
+terminate(shutdown, </em>State) ->
+  ok;
+terminate({shutdown, <em>Reason}, </em>State) ->
+  ok;
+terminate(<em>Reason, </em>State) ->
+  ok.
+%%%.
+%%%'   PRIVATE FUNCTIONS
+% TODO: Add private helper functions here.</p>
+
+<p>%%%.
+%%% vim: set filetype=erlang tabstop=2 foldmarker=%%%',%%%. foldmethod=marker:
+```</p>
+
+<p>Now, as we have the skeleton, we can start to flesh it out with our specific code.
+What we need to do is to put the start() snippet from the above in the init() function:</p>
+
+<p>``` erlang
+init(State) -></p>
+
+<pre><code>    SvcName = ?MODULE,
+    SvcOpts = [{'Origin-Host', atom_to_list(SvcName) ++ ".example.com"},
+                    {'Origin-Realm', "example.com"},
+                    {'Vendor-Id', 193},
+                    {'Product-Name', "Server"},
+                    {'Auth-Application-Id', [?DIAMETER_APP_ID_COMMON]},
+                    {application, [{alias, diameter_base_app},
+                                   {dictionary, ?DIAMETER_DICT_COMMON},
+                                   {module, server_cb}]}],
+    TransportOpts =  [{transport_module, diameter_tcp},
+                                    {transport_config, [{reuseaddr, true},
+                                    {ip, {127,0,0,1}}, {port, 3868}]}],
+    diameter:start(),
+    diameter:start_service(SvcName, SvcOpts),
+    diameter:add_transport(SvcName, {listen, TransportOpts}),
+   {ok, State}.
+</code></pre>
+
+<p>```</p>
+
+<p>Then just add the headers to be included in the beginning:</p>
+
+<p><code>erlang
+-include_lib("diameter.hrl").
+-include_lib("diameter_gen_base_rfc3588.hrl").
+</code></p>
+
+<p>and that's pretty much for the gen_server. It is of course a good idea to create a macros for the service options, as we will probably implement several Diameter Applications in this module, so, each one will need different name, svc and transport options. For simplicity's sake, I'll leave it as is for now.</p>
+
+<p>Why we bother at all with those gen_server behaviour, templates, etc? Fist we need a gen_server in order to comply with OTP application requirements and second - we can use this behaviour later to control our server.</p>
+
+<p>As you already know, there is another module we need to implement - the diameter_app (the callback) module. Here is how it looks like:</p>
+
+<p>``` erlang server_cb.erl
+-module(server_cb).</p>
+
+<p>-include_lib("diameter.hrl").
+-include_lib("diameter_gen_base_rfc3588.hrl").</p>
+
+<p>%% diameter callbacks
+-export([peer_up/3,</p>
+
+<pre><code>     peer_down/3,
+     pick_peer/4,
+     prepare_request/3,
+     prepare_retransmit/3,
+     handle_answer/4,
+     handle_error/4,
+     handle_request/3]).
+</code></pre>
+
+<p>-define(UNEXPECTED, erlang:error({unexpected, ?MODULE, ?LINE})).</p>
+
+<p>peer_up(<em>SvcName, {PeerRef, </em>}, State) -></p>
+
+<pre><code>        io:format("up: ~p~n", [PeerRef]),
+        State.
+</code></pre>
+
+<p>peer_down(<em>SvcName, {PeerRef, </em>}, State) -></p>
+
+<pre><code>        io:format("down: ~p~n", [PeerRef]),
+        State.
+</code></pre>
+
+<p>pick_peer(<em>, </em>, <em>SvcName, </em>State) -></p>
+
+<pre><code>        ?UNEXPECTED.
+</code></pre>
+
+<p>prepare_request(<em>, </em>SvcName, _Peer) -></p>
+
+<pre><code>        ?UNEXPECTED.
+</code></pre>
+
+<p>prepare_retransmit(<em>Packet, </em>SvcName, _Peer) -></p>
+
+<pre><code>        ?UNEXPECTED.
+</code></pre>
+
+<p>handle_answer(<em>Packet, </em>Request, <em>SvcName, </em>Peer) -></p>
+
+<pre><code>        ?UNEXPECTED.
+</code></pre>
+
+<p>handle_error(<em>Reason, </em>Request, <em>SvcName, </em>Peer) -></p>
+
+<pre><code>        ?UNEXPECTED.
+</code></pre>
+
+<p>handle_request(#diameter_packet{msg = Req, errors = []}, <em>SvcName, {</em>, Caps})</p>
+
+<pre><code>              when is_record(Req, diameter_base_ACR) -&gt;
+
+        #diameter_caps{origin_host = {OH,_},
+                       origin_realm = {OR,_}}
+            = Caps,
+
+        #diameter_base_ACR{'Session-Id' = Id,
+                           'Accounting-Record-Type' = RecType,
+                           'Accounting-Record-Number' = RecNum,
+                           'Acct-Application-Id' = AccAppId }
+            = Req,
+
+        Ans = #diameter_base_ACA{'Result-Code' = ?'DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS',
+                           'Origin-Host' = OH,
+                           'Origin-Realm' = OR,
+                           'Session-Id' = Id,
+                           'Accounting-Record-Type' = RecType,
+                           'Accounting-Record-Number' = RecNum
+
+            },
+        {reply, Ans}.
+</code></pre>
+
+<p>```</p>
+
+<p>Here we handle only the Accounting-Request (ACR). In reality, this will be the place to invoke the "accounting" function once we get the Aggregation module ready (it will be subject of the next chapter). As for now, we simply replay with "DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS". There are plenty of other requests we have to handle, but as the purpose of this article is just to show some examples, I'll live the rest to the readers. As you see the other diameter_app functions just return "Unexpected Error".</p>
+
+<p>We have all the pieces needed to run the server, but there is few tweaks left before we get a working erlang applications.</p>
+
+<p>First, add "diameter" application in the application resource file:</p>
+
+<p>``` erlang diaserver.app.src
+{application, diaserver,
+ [
+  {description, ""},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [</p>
+
+<pre><code>              kernel,
+              stdlib,
+              diameter
+             ]},
+</code></pre>
+
+<p>  {mod, { diaserver_app, []}},
+  {env, []}
+ ]}.
+```</p>
+
+<p> This will run diameter application on server startup. We can now remove the diameter:start() call from the diameter_srv.</p>
+
+<p> Our server itself, will be started by the supervisor, thus, we have to write the supervisor's "Child Specification". It will look like this:</p>
+
+<p>``` erlang server supervisor's ChildSpec</p>
+
+<pre><code>     DiaServer = {diaserver,{diameter_srv,start_link,[]},
+                 permanent,
+                 5000,
+                 worker,
+                 [server_cb]}
+</code></pre>
+
+<p>```</p>
+
+<p>The whole supervisor's init():</p>
+
+<p>``` erlang server supervisor diaserver_sup.erl
+init([]) -></p>
+
+<pre><code>    DiaServer = {diaserver,{diameter_srv,start_link,[]},
+                 permanent,
+                 5000,
+                 worker,
+                 [server_cb]},
+
+    {ok, { {one_for_one, 5, 10}, [DiaServer]} }.
+</code></pre>
+
+<p>```</p>
+
+<p>In rebar.config erl_opts, add the location of diameter header files. Your final configuration should be similar to:</p>
+
+<p><code>erlang rebar.config
+{lib_dirs, []}.
+{erl_first_files, []}.
+{erl_opts, [{i,"include"},{i, "/usr/local/lib/erlang/lib/diameter-0.9/include"}, {src_dirs, ["src"]}]}.
+{erlydtl_opts, []}.
+{cover_enabled, true}.
+{clean_files, ["ebin/*.beam", "priv/log/*", "rel/*"]}.
+{target, "rel"}.
+{app_bin, []}.
+{deps_dir, ["deps"]}.
+{deps, []}.
+{edoc_opts, [{doclet, edown_doclet}]}.
+{sub_dirs, []}.
+</code></p>
+
+<p>The last step is to compile the application:
+<code>bash
+./rebar compile
+</code>
+And we are done with the server.</p>
+
+<p>Now, go to the project's root directory and copy rebar executable there. What we are going to do is to create Erlang "executable":</p>
+
+<p>Run the following commands:</p>
+
+<p><code>bash
+mkdir rel
+cd rel
+ ../rebar create-node nodeid=diaserver
+ ==&gt; rel (create-node)
+Writing reltool.config
+Writing files/erl
+Writing files/nodetool
+Writing files/diaserver
+Writing files/sys.config
+Writing files/vm.args
+Writing files/diaserver.cmd
+Writing files/start_erl.cmd
+</code></p>
+
+<p>The above will create Erlang node release configuration.</p>
+
+<p>Almost done, but first we have to edit the reltool.config, which was just created by the rebar:</p>
+
+<ul>
+<li>put our "diaserver" application directory in the "lib_dirs":</li>
+</ul>
+
+
+<p><code>
+ {lib_dirs, ["../apps","../apps/diaserver"]},
+</code></p>
+
+<ul>
+<li>add "diameter" and "diaserver" applications in the list of modules needed by the release:</li>
+</ul>
+
+
+<p>```
+ {rel, "diaserver", "1",</p>
+
+<pre><code>    [
+     kernel,
+     stdlib,
+     sasl,
+     diameter,
+     diaserver
+    ]},
+</code></pre>
+
+<p>```</p>
+
+<ul>
+<li>remove {incl_cond, exclude} clause. incl_cond="derived" will be used as defauld, which means that Reltool will include applications that it detects can be used by any applications in the "rel" tuple.</li>
+</ul>
+
+
+<p>Full reltool.config should be similar to:</p>
+
+<p>``` bash reltool.config
+{sys, [</p>
+
+<pre><code>   {lib_dirs, ["../apps","../apps/diaserver"]},
+   {erts, [{mod_cond, derived}, {app_file, strip}]},
+   {app_file, strip},
+   {rel, "diaserver", "1",
+    [
+     kernel,
+     stdlib,
+     sasl,
+     diameter,
+     diaserver
+    ]},
+   {rel, "start_clean", "",
+    [
+     kernel,
+     stdlib
+    ]},
+   {boot_rel, "diaserver"},
+   {profile, embedded},
+   {excl_archive_filters, [".*"]}, %% Do not archive built libs
+   {excl_sys_filters, ["^bin/.*", "^erts.*/bin/(dialyzer|typer)",
+                       "^erts.*/(doc|info|include|lib|man|src)"]},
+   {excl_app_filters, ["\.gitignore"]},
+   {app, sasl,   [{incl_cond, include}]},
+   {app, stdlib, [{incl_cond, include}]},
+   {app, kernel, [{incl_cond, include}]},
+   {app, diaserver, [{incl_cond, include}]}
+  ]}.
+</code></pre>
+
+<p>{target_dir, "diaserver"}.</p>
+
+<p>{overlay, [</p>
+
+<pre><code>       {mkdir, "log/sasl"},
+       {copy, "files/erl", "\{\{erts_vsn\}\}/bin/erl"},
+       {copy, "files/nodetool", "\{\{erts_vsn\}\}/bin/nodetool"},
+       {copy, "files/diaserver", "bin/diaserver"},
+       {copy, "files/sys.config", "releases/\{\{rel_vsn\}\}/sys.config"},
+       {copy, "files/diaserver.cmd", "bin/diaserver.cmd"},
+       {copy, "files/start_erl.cmd", "bin/start_erl.cmd"},
+       {copy, "files/vm.args", "releases/\{\{rel_vsn\}\}/vm.args"}
+      ]}.
+</code></pre>
+
+<p>```</p>
+
+<p>Back in the top directory, we need a simple rebar.config file:</p>
+
+<p>``` bash rebar.config
+{sub_dirs, ["apps/diaserver",</p>
+
+<pre><code>        "rel"]}.
+</code></pre>
+
+<p>{erl_opts, [debug_info]}.</p>
+
+<p>{lib_dirs, ["apps", "deps"]}.</p>
+
+<p>{deps, []}.
+```</p>
+
+<p>Execute:</p>
+
+<p><code>bash
+$./rebar generate
+</code></p>
+
+<p>At this point, if everything went well, you should have a working Erlang application. Let's try it:</p>
+
+<p><code>bash
+$ ./rel/diaserver/bin/diaserver start
+$ ./rel/diaserver/bin/diaserver ping
+pong
+</code></p>
+
+<p>It is running, but is it capable to serve Diameter requests? We need a client to test this. I'm going to use the one provided in Diameter library's <a href="https://github.com/erlang/otp/tree/master/lib/diameter/examples/code">examples</a>, but I need to implement Accounting Request first. Just add the following code to client.erl:</p>
+
+<p>``` erlang
+call_ACR() -></p>
+
+<pre><code>    call_ACR(?SVC_NAME).
+</code></pre>
+
+<p>call_ACR(Name) -></p>
+
+<pre><code>    SId = diameter:session_id(?L(Name)),
+    ACR = #diameter_base_ACR{'Session-Id' = SId,
+                             'Accounting-Record-Type' = ?'DIAMETER_BASE_ACCOUNTING-RECORD-TYPE_EVENT_RECORD',
+                             'Accounting-Record-Number' = 1},
+    diameter:call(Name, client_base_app, ACR, []).
+</code></pre>
+
+<p>```</p>
+
+<p>and change the client_cb.erl function "prepare_request" to:</p>
+
+<p>``` erlang
+prepare_request(#diameter_packet{msg = Rec} = Pkt, <em>, {</em>, Caps}) -></p>
+
+<pre><code>#diameter_caps{origin_host = {OH, DH},
+               origin_realm = {OR, DR}}
+    = Caps,
+
+{send, Rec#diameter_base_ACR{'Origin-Host' = OH,
+                             'Origin-Realm' = OR,
+                             'Destination-Realm' = DR}}.
+</code></pre>
+
+<p>```</p>
+
+<p>And finally - that's it. Compile the client, run the Erlang shell and try it:</p>
+
+<p>```
+Eshell V5.8.4  (abort with ^G)
+1> diameter:start().
+ok
+2> client:start().
+ok
+3> client:connect(tcp).
+{ok,#Ref&lt;0.0.0.50>}
+4> client:call_ACR().
+{ok,{diameter_base_ACA,"client;1400340423;1;nonode@nohost",</p>
+
+<pre><code>                   2001,"diameter_srv.example.com","example.com",1,1,[],[],[],
+                   [],[],[],[],[],[],[],[],[],[]}}
+</code></pre>
+
+<p>```</p>
+
+<p>We happily got an Accounting-Answer(ACA) Diameter response :-)</p>
+
+<p>Well, at this moment we can handle just one command, but implementing the rest of the "Diameter Base Application" spec shouldn't be much of a problem with everything we've done so far.</p>
+
+<p>You can find the source code in github: <a href="https://github.com/vascokk/diameter-test/tree/master/erlang-rts-part-1">https://github.com/vascokk/diameter-test</a></p>
+
+<p>In the next article I'll start with the implementation of the Aggregation module. See ya!</p>
+
+<h2>Credits</h2>
+
+<p>Susan Potter for the rebar <a href="https://github.com/mbbx6spp/rebar-templates">templates</a></p>
+
+<p>Frederic Trottier-Hebert for the amazing <a href="http://learnyousomeerlang.com/">"Learn You Some Erlang"</a> book</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang Real Time Server - Introduction]]></title>
+    <link href="http://vascokk.github.com/blog/2012/05/11/erlang-real-time-server-introduction/"/>
+    <updated>2012-05-11T19:53:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/05/11/erlang-real-time-server-introduction</id>
+    <content type="html"><![CDATA[<p>Erlang RTS - Introduction</p>
+
+<p>What I am planning to do is a 'pet project' utilising my new passion - functional programing in Erlang. In this project I'll sketch some ideas for a telecom "Online Charging System"(OCS). I have no intention to implement a real OCS as defined in the 3GPP specifications. It will be just a small part of what is more popular in non-3GPP world as a "Real Time Server" (RTS).</p>
+
+<p>"WTF is a RTS?" - you are asking. Well, when it comes to the Billing System domain, this is a piece of software, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the part of the system which grants you access to and charges for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc.</p>
+
+<p>The basic parts of the usual RTS are:</p>
+
+<ul>
+<li>AAA protocol server, which will receive the AAA requests.</li>
+<li>A module, I will call it "Aggregation module", which purpose is to calculate the answers (for those of you familiar with the 3GPP - it is somewat combined Account Balance Management Function (ABMF) and Rating Function (RF) ) .</li>
+</ul>
+
+
+<p>The AAA protocol is an important part. If you have ever heard about 'RADIUS' - that's it. It is a protocol widely used in ISPs and VoIP operators. What I am planning to use, however, is the RADIUS successor - Diameter. Partially, because the standard Erlang distribution has a Diameter library and partially, because I want to learn more about Diameter.</p>
+
+<p>The second part, which is even more interesting - the Aggregation - is the place where all the calculations will be done. For example - if you want to watch a film on demand or make a voice/video call the system has to check whether you have enough money on your balance and will grant or not access to the service - that's the 'authorization' part. After the end of the call it will calculate the amount to deduct from your balance, depending on the time you spent talking and the destination (local or international call, etc.). That's the 'accounting' part. Since there can be between hunderds and millions (if you are someone like AT&amp;T :-)  ) of subscribers, simultaneously using your services, the system has to be scalable. By 'scalable' I mean - painlessly adding a new Aggregation module with a minimum effort. It looks like Riak would fit this purpose perfectly.</p>
+
+<p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert's <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, as my expirience in Erlang, Diameter and Riak is relatively small, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
+
+<p>Now, let's go to the first part of our <a href="http://vas.io/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">"Erlang RTS" project</a></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[The first one]]></title>
+    <link href="http://vascokk.github.com/blog/2012/05/10/the-first-one/"/>
+    <updated>2012-05-10T23:00:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/05/10/the-first-one</id>
+    <content type="html"><![CDATA[<h2>A Word From The Author</h2>
+
+<p>Hello all!</p>
+
+<p>This is the second attempt to start a blog. This time my intention is to create a 'working blog'. Here I will write about the new stuff I'm learning in programming and the reason to start this is because trying to explain something is the best way to learn. To quote <a href="http://blogs.msdn.com/b/ericlippert/">Eric Lippert</a>:</p>
+
+<p>{%blockquote%}
+Writing a blog is also tremendously helpful; by requiring me to explain complex topics to other people, I am forced to confront my own inadequate understanding of various topics all the time.
+{%endblockquote%}</p>
+
+<p>So, for me it will be just a learning tool. If someone else finds it useful - that would be a bonus.</p>
+]]></content>
+  </entry>
+  
+</feed>

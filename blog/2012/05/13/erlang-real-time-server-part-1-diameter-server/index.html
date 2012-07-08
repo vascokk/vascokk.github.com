@@ -5,11 +5,11 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Reinventing The Wheel</title>
+  <title>Erlang Real Time Server - Part 1 - Diameter Server - Reinventing The Wheel</title>
   <meta name="author" content="Vasco Kolarov">
 
   
-  <meta name="description" content="High level overview of the RTS In a schematic view, the RTS will look like this: The idea here is: As a result of Diameter request, command on &hellip;">
+  <meta name="description" content="Diameter Basics The Diameter protocol is defined by RFC 3588, and defines the minimum requirements for an AAA protocol. The best way to build up some &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -18,7 +18,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://vascokk.github.com">
+  <link rel="canonical" href="http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <script src="/javascripts/modernizr-2.0.js"></script>
@@ -74,360 +74,12 @@
 </nav>
   <div id="main">
     <div id="content">
-      <div class="blog-index">
+      <div>
+<article class="hentry" role="article">
   
-  
-  
-    <article>
-      
   <header>
     
-      <h1 class="entry-title"><a href="/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Erlang-real-time-server-part-2-aggregation</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2012-06-06T18:39:00+01:00" pubdate data-updated="true">Jun 6<span>th</span>, 2012</time>
-        
-         | <a href="/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/#disqus_thread">Comments</a>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><h2>High level overview of the RTS</h2>
-
-<p>In a schematic view, the RTS will look like this:</p>
-
-<p><img src="/images/rts-part-2/RTS1.png" alt="" /></p>
-
-<p>The idea here is: As a result of Diameter request, command on Aggregation module will be invoked (e.g. &#8220;accounting()&#8221;). As the job, usually performed by this module is computationally intensive, the Aggregation will run on a Riak cluster and the command will be executed within this cluster.</p>
-
-<h2>Setting up a Riak cluster (or  &#8220;A very lame introduction to Riak&#8221;)</h2>
-
-<p>Setting up a cluster could be a tedious job. Fortunately, there are always some giant&#8217;s shoulders you can step on*. In this case I will use the Ryan Zezeski&#8217;s RiakCore rebar <a href="https://github.com/rzezeski/rebar_riak_core">templates</a></p>
-
-<p>Once you clone the templates repository from GitHub, make a new Erlang application directory in <em>apps</em> and run <em>rebar</em> from it:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>&lt;project_root&gt; <span class="nv">$ </span>./mkdir apps/aggregation
-</span><span class='line'>&lt;project_root&gt; <span class="nv">$ </span><span class="nb">cd </span>apps/aggregation
-</span><span class='line'>&lt;project_root&gt;/apps/aggregation <span class="nv">$ </span>../../rebar -f create <span class="nv">template</span><span class="o">=</span>riak_core_multinode <span class="nv">appid</span><span class="o">=</span>aggregation <span class="nv">nodeid</span><span class="o">=</span>aggregation
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>With this run correctly, you should have the following files in the application&#8217;s <em>src</em> directory:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>aggregation_app.erl
-</span><span class='line'>aggregation.app.src
-</span><span class='line'>aggregation_console.erl
-</span><span class='line'>aggregation.erl
-</span><span class='line'>aggregation.hrl
-</span><span class='line'>aggregation_node_event_handler.erl
-</span><span class='line'>aggregation_ring_event_handler.erl
-</span><span class='line'>aggregation_sup.erl
-</span><span class='line'>aggregation_vnode.erl
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>What you are looking at is an application, which will start the Riak&#8217;s working horse - the vnode. The vnode (&#8220;virtual node&#8221;) is the building block of the Riak cluster. Riak itself is heavily influenced by Amazon&#8217;s Dynamo paper - <a href="http://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf">&#8220;Dynamo: Amazon’s Highly Available Key-value Store&#8221;</a>. It is worth reading, but if you are not in an &#8220;academic mood&#8221; right now, here are some highlights:</p>
-
-<ul>
-<li>Riak is a distributed, highly scalable, key-value store</li>
-<li>Riak is usually deployed on a cluster (set of physical hosts called &#8220;nodes&#8221;)</li>
-<li>each node runs a certain number of &#8220;virtual nodes&#8221; (or &#8220;vnodes&#8221;)</li>
-<li>the vnode is responsible for a partition of the Riak &#8220;Ring&#8221;</li>
-<li>the Ring is a circular, ordered, 160 bit integer space (i.e. integers from 0 to 2<sup>160</sup> placed in circle)</li>
-<li>each element of the Ring represents a hash value computed of the key from a &#8220;key-value&#8221; pair (in fact it will be computed of the &#8220;bucket&#8221;+&#8221;key&#8221;, but this is not so important at the moment)</li>
-<li>the number of partitions is always the same, whether you add a new node to the Cluster or take one off (i.e. a bit of a planning is needed upfront)</li>
-<li>the vnode can be used to store data or to perform computations (executing commands)</li>
-</ul>
-
-
-<p>I&#8217;ll not go further into details, as <a href="http://wiki.basho.com">wiki.basho.com</a> is your best source of information, if you want to dive in. I&#8217;ll just outline the &#8220;scalability&#8221; thing and how Riak will make our life easier:</p>
-
-<p>As you see in the second bullet from the bottom - the number of partitions is constant. It is set in the app.config&#8217;s ring_creation_size parameter. Default number is 64 and there is no formal way to calculate it. It would be more or less empirically set by the developer. According to the Riak&#8217;s wiki - for a mid-sized cluster of 8 to 16 nodes, the number should be between 128 and 512 partitions (always a power of 2), but this is definitely not &#8220;set on stone&#8221;. Let&#8217;s assume that we have set the optimal ring size already. At some point of time when the system is fully operational, we might need more computational power. Then, what we should do is:</p>
-
-<ol>
-<li>Deploy the application on a new node.</li>
-<li>&#8220;join&#8221; (one-line command) the new one to a randomly chosen node from the cluster (you can really pick any member, there is no &#8220;master node&#8221;).</li>
-<li>&#8230;.Wait&#8230;there is no 3rd&#8230; :)</li>
-</ol>
-
-
-<p>The new node will automatically claim a certain number of partitions, offloading the other nodes. Under the hood, Riak will use &#8220;handoff&#8221; procedures, &#8220;Gossip&#8221; protocol and other magics to do the job. What is important to us is that, due to the &#8220;consistent hashing&#8221; (more on this in some other article), the relocation of the vnodes will be transparent to the application(s) using the Riak cluster, as all the hash values are still on the same vnodes, even though, some of the vnodes are now residing on a different physical host. Cool, isn&#8217;t it? The bottom line is: Scaling by adding a new host to the cluster is dead simple, but it will relocate a number of vnodes - not add new ones. So, be careful when you plan your Ring size.</p>
-
-<p>generated rebar.conf:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">%% -*- erlang -*-</span>
-</span><span class='line'><span class="p">{</span><span class="n">sub_dirs</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;rel&quot;</span><span class="p">,</span> <span class="s">&quot;apps/aggregation&quot;</span><span class="p">]}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">cover_enabled</span><span class="p">,</span> <span class="n">true</span><span class="p">}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">erl_opts</span><span class="p">,</span> <span class="p">[</span><span class="n">debug_info</span><span class="p">,</span> <span class="n">warnings_as_errors</span><span class="p">]}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">edoc_opts</span><span class="p">,</span> <span class="p">[{</span><span class="n">dir</span><span class="p">,</span> <span class="s">&quot;../../doc&quot;</span><span class="p">}]}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">deps</span><span class="p">,</span> <span class="p">[{</span><span class="n">riak_core</span><span class="p">,</span> <span class="s">&quot;HEAD&quot;</span><span class="p">,</span>
-</span><span class='line'>         <span class="p">{</span><span class="n">git</span><span class="p">,</span> <span class="s">&quot;https://github.com/basho/riak_core&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;HEAD&quot;</span><span class="p">}}}</span>
-</span><span class='line'>       <span class="p">]}.</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>changed rebar.conf:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">%% -*- erlang -*-</span>
-</span><span class='line'><span class="p">{</span><span class="n">sub_dirs</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;rel&quot;</span><span class="p">,</span> <span class="s">&quot;apps/aggregation&quot;</span><span class="p">]}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">cover_enabled</span><span class="p">,</span> <span class="n">true</span><span class="p">}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">erl_opts</span><span class="p">,</span> <span class="p">[</span><span class="n">debug_info</span><span class="p">,</span> <span class="n">warnings_as_errors</span><span class="p">]}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">edoc_opts</span><span class="p">,</span> <span class="p">[{</span><span class="n">dir</span><span class="p">,</span> <span class="s">&quot;../../doc&quot;</span><span class="p">}]}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">deps</span><span class="p">,</span> <span class="p">[{</span><span class="n">riak_core</span><span class="p">,</span> <span class="s">&quot;1.1.2&quot;</span><span class="p">,</span>
-</span><span class='line'>         <span class="p">{</span><span class="n">git</span><span class="p">,</span> <span class="s">&quot;https://github.com/basho/riak_core&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s">&quot;1.1.2&quot;</span><span class="p">}}}</span>
-</span><span class='line'>       <span class="p">]}.</span>
-</span><span class='line'><span class="p">{</span><span class="n">lib_dirs</span><span class="p">,</span> <span class="p">[</span><span class="s">&quot;apps&quot;</span><span class="p">,</span> <span class="s">&quot;deps&quot;</span><span class="p">]}.</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>and compile:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>&lt;project_root&gt;/erlang-rts-part-2 <span class="nv">$ </span>./rebar <span class="nv">compile</span>
-</span><span class='line'><span class="o">==</span>&gt; lager <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; poolboy <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; protobuffs <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; basho_stats <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; riak_sysmon <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; mochiweb <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; webmachine <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; riak_core <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; rel <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'><span class="o">==</span>&gt; aggregation <span class="o">(</span>compile<span class="o">)</span>
-</span><span class='line'>Compiled src/aggregation_sup.erl
-</span><span class='line'>Compiled src/aggregation_node_event_handler.erl
-</span><span class='line'>Compiled src/aggregation_app.erl
-</span><span class='line'>Compiled src/aggregation_console.erl
-</span><span class='line'>Compiled src/aggregation.erl
-</span><span class='line'>Compiled src/aggregation_vnode.erl
-</span><span class='line'>Compiled src/aggregation_ring_event_handler.erl
-</span><span class='line'><span class="o">==</span>&gt; erlang-rts-part-2 <span class="o">(</span>compile<span class="o">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<h2>Create release nodes</h2>
-
-<p>At this moment <em>rel</em> directory should contain the <em>aggregation</em> release configuration file. Because we have 2 applications (<em>diaserver</em> and <em>aggregation</em>) I&#8217;ll put them in separate <em>rel</em> subdirectories.</p>
-
-<p>First, create <em>aggregation</em> sub-directory and move the content of <em>rel</em> there. Next, edit the second line of reltool.config to match the directory structure:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'> <span class="o">{</span>lib_dirs, <span class="o">[</span><span class="s2">&quot;../../apps/&quot;</span>, <span class="s2">&quot;../../apps/aggregation/&quot;</span>, <span class="s2">&quot;../../deps/&quot;</span><span class="o">]}</span>,
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Create the diaserver node (the same way as in Part1, only in different directory):</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkdir diaserver
-</span><span class='line'><span class="nb">cd </span>diaserver
-</span><span class='line'>rel/diaserver <span class="nv">$ </span>../../rebar create-node <span class="nv">nodeid</span><span class="o">=</span><span class="nv">diaserver</span>
-</span><span class='line'><span class="o">==</span>&gt; diaserver <span class="o">(</span>create-node<span class="o">)</span>
-</span><span class='line'>Writing reltool.config
-</span><span class='line'>Writing files/erl
-</span><span class='line'>Writing files/nodetool
-</span><span class='line'>Writing files/diaserver
-</span><span class='line'>Writing files/sys.config
-</span><span class='line'>Writing files/vm.args
-</span><span class='line'>Writing files/diaserver.cmd
-</span><span class='line'>Writing files/start_erl.cmd
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Edit reltool.config the in the way already described in Part1.</p>
-
-<p>Create 2 aggregation release nodes. They will work on different ports and we will be able to run them on the same physical host. This way we will simulate a 2-host Riak cluster:</p>
-
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>erlang-rts-part-2/rel/aggregation <span class="nv">$ </span>../../rebar generate <span class="nv">target_dir</span><span class="o">=</span>./dev/dev1 <span class="nv">overlay_vars</span><span class="o">=</span>vars/dev1.config <span class="nv">appid</span><span class="o">=</span><span class="nv">aggregation</span>
-</span><span class='line'><span class="o">==</span>&gt; aggregation <span class="o">(</span>generate<span class="o">)</span>
-</span><span class='line'>erlang-rts-part-2/rel/aggregation <span class="nv">$ </span>../../rebar generate <span class="nv">target_dir</span><span class="o">=</span>./dev/dev2 <span class="nv">overlay_vars</span><span class="o">=</span>vars/dev2.config <span class="nv">appid</span><span class="o">=</span><span class="nv">aggregation</span>
-</span><span class='line'><span class="o">==</span>&gt; aggregation <span class="o">(</span>generate<span class="o">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Now, let&#8217;s test the Riak cluster. Open a terminal and start the first node:</p>
-
-<figure class='code'><figcaption><span>First console</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>erlang-rts-part-2/rel/aggregation <span class="nv">$ </span>./dev/dev1/bin/aggregation console
-</span><span class='line'>
-</span><span class='line'>Exec: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/erts-5.8.4/bin/erlexec -boot /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/releases/1/aggregation -embedded -config /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/etc/app.config -args_file /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/etc/vm.args -- console
-</span><span class='line'>Root: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1
-</span><span class='line'>Erlang R14B03 <span class="o">(</span>erts-5.8.4<span class="o">)</span> <span class="o">[</span><span class="nb">source</span><span class="o">]</span> <span class="o">[</span>rq:1<span class="o">]</span> <span class="o">[</span>async-threads:5<span class="o">]</span> <span class="o">[</span>hipe<span class="o">]</span> <span class="o">[</span>kernel-poll:true<span class="o">]</span>
-</span><span class='line'>
-</span><span class='line'>
-</span><span class='line'><span class="o">=</span>INFO <span class="nv">REPORT</span><span class="o">====</span> 21-Jun-2012::21:44:19 <span class="o">===</span>
-</span><span class='line'>    alarm_handler: <span class="o">{</span><span class="nb">set</span>,<span class="o">{{</span>disk_almost_full,<span class="s2">&quot;/&quot;</span><span class="o">}</span>,<span class="o">[]}}</span>
-</span><span class='line'>** Found 0 name clashes in code paths
-</span><span class='line'>21:44:20.142 <span class="o">[</span>info<span class="o">]</span> Application lager started on node <span class="s1">&#39;aggregation1@127.0.0.1&#39;</span>
-</span><span class='line'>21:44:20.236 <span class="o">[</span>warning<span class="o">]</span> No ring file available.
-</span><span class='line'>21:44:20.237 <span class="o">[</span>info<span class="o">]</span> Application riak_core started on node <span class="s1">&#39;aggregation1@127.0.0.1&#39;</span>
-</span><span class='line'>21:44:20.249 <span class="o">[</span>info<span class="o">]</span> Waiting <span class="k">for </span>application aggregation to start <span class="o">(</span>0 seconds<span class="o">)</span>.
-</span><span class='line'>21:44:20.254 <span class="o">[</span>info<span class="o">]</span> Application aggregation started on node <span class="s1">&#39;aggregation1@127.0.0.1&#39;</span>
-</span><span class='line'>Eshell V5.8.4  <span class="o">(</span>abort with ^G<span class="o">)</span>
-</span><span class='line'><span class="o">(</span>aggregation1@127.0.0.1<span class="o">)</span>1&gt; 21:44:20.351 <span class="o">[</span>info<span class="o">]</span> Wait <span class="nb">complete </span><span class="k">for </span>application aggregation <span class="o">(</span>0 seconds<span class="o">)</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>We have the first node &#8216;aggregation1@127.0.0.1&#8217; running.</p>
-
-<p>Open a second terminal window, start the second node and join it to the first one:</p>
-
-<figure class='code'><figcaption><span>Second console</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>erlang-rts-part-2/rel/aggregation <span class="nv">$ </span>./dev/dev2/bin/aggregation start
-</span><span class='line'>erlang-rts-part-2/rel/aggregation <span class="nv">$ </span>./dev/dev2/bin/aggregation-admin join aggregation1@127.0.0.1
-</span><span class='line'>
-</span><span class='line'>Sent join request to aggregation1@127.0.0.1
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Attach to the running second node and call aggregation:ping() few times. The result in my case is:</p>
-
-<figure class='code'><figcaption><span>Second console</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>erlang-rts-part-2/rel/aggregation <span class="nv">$ </span>./dev/dev2/bin/aggregation attach
-</span><span class='line'>Attaching to /tmp//home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev2/erlang.pipe.1 <span class="o">(</span>^D to <span class="nb">exit</span><span class="o">)</span>
-</span><span class='line'><span class="o">(</span>aggregation2@127.0.0.1<span class="o">)</span>1&gt; aggregation:ping<span class="o">()</span>.
-</span><span class='line'>Ping received by node : <span class="s1">&#39;aggregation2@127.0.0.1&#39;</span>
-</span><span class='line'><span class="o">{</span>pong,479555224749202520035584085735030365824602865664<span class="o">}</span>
-</span><span class='line'><span class="o">(</span>aggregation2@127.0.0.1<span class="o">)</span>2&gt; aggregation:ping<span class="o">()</span>.
-</span><span class='line'><span class="o">{</span>pong,639406966332270026714112114313373821099470487552<span class="o">}</span>
-</span><span class='line'><span class="o">(</span>aggregation2@127.0.0.1<span class="o">)</span>3&gt;
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>As you see, the first invocation of ping() is received by the second node: &#8220;Ping received by node : &#8216;aggregation2@127.0.0.1&#8217;&#8221;. The second ping(), however, did not print anything. If we open the first console, we&#8217;ll see:</p>
-
-<figure class='code'><figcaption><span>First console</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>21:45:23.394 <span class="o">[</span>info<span class="o">]</span> <span class="s1">&#39;aggregation2@127.0.0.1&#39;</span> joined cluster with status <span class="s1">&#39;valid&#39;</span>
-</span><span class='line'>Ping received by node : <span class="s1">&#39;aggregation1@127.0.0.1&#39;</span>
-</span></code></pre></td></tr></table></div></figure>
-
-
-<p>Hey, distributed unicorns! :)</p>
-
-<h2>Credits</h2>
-
-<p>Ryan Zezeski for the Riak <a href="https://github.com/rzezeski/try-try-try">tutorial</a> and rebar <a href="https://github.com/rzezeski/rebar_riak_core">templates</a></p>
-
-<h2>References</h2>
-
-<p>(*) <a href="http://en.wikipedia.org/wiki/Standing_on_the_shoulders_of_giants">&#8220;Standing on the shoulders of giants&#8221;</a></p>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article>
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang Real Time Server - Part 1 - Diameter Server</a></h1>
+      <h1 class="entry-title">Erlang Real Time Server - Part 1 - Diameter Server</h1>
     
     
       <p class="meta">
@@ -445,14 +97,14 @@
 
 <time datetime="2012-05-13T18:32:00+01:00" pubdate data-updated="true">May 13<span>th</span>, 2012</time>
         
-         | <a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/#disqus_thread">Comments</a>
+         | <a href="#disqus_thread">Comments</a>
         
       </p>
     
   </header>
 
 
-  <div class="entry-content"><h2>Diameter Basics</h2>
+<div class="entry-content"><h2>Diameter Basics</h2>
 
 <p>The <a href="http://en.wikipedia.org/wiki/Diameter_(protocol)">Diameter</a> protocol is defined by <a href="http://tools.ietf.org/html/rfc3588">RFC 3588</a>, and defines the minimum requirements for an AAA protocol. The best way to build up some knowledge in Diameter is to read the RFC first. At the end of the Wikipedia article there are also a bunch of links to good introductory articles. Anyway, few very basic points:</p>
 
@@ -1379,80 +1031,16 @@ What we need to do is to put the start() snippet from the above in the init() fu
 
 <p>Frederic Trottier-Hebert for the amazing <a href="http://learnyousomeerlang.com/">&#8220;Learn You Some Erlang&#8221;</a> book</p>
 </div>
-  
-  
 
 
-    </article>
-  
-  
-    <article>
+  <footer>
+    <p class="meta">
       
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/05/11/erlang-real-time-server-introduction/">Erlang Real Time Server - Introduction</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
   
 
+<span class="byline author vcard">Posted by <span class="fn">Vasco Kolarov</span></span>
 
-<time datetime="2012-05-11T19:53:00+01:00" pubdate data-updated="true">May 11<span>th</span>, 2012</time>
-        
-         | <a href="/blog/2012/05/11/erlang-real-time-server-introduction/#disqus_thread">Comments</a>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Erlang RTS - Introduction</p>
-
-<p>What I am planning to do is a &#8216;pet project&#8217; utilising my new passion - functional programing in Erlang. In this project I&#8217;ll sketch some ideas for a telecom &#8220;Online Charging System&#8221;(OCS). I have no intention to implement a real OCS as defined in the 3GPP specifications. It will be just a small part of what is more popular in non-3GPP world as a &#8220;Real Time Server&#8221; (RTS).</p>
-
-<p>&#8220;WTF is a RTS?&#8221; - you are asking. Well, when it comes to the Billing System domain, this is a piece of software, which is responsible for the Authentication, Authorisation and Accounting (AAA) services. This is the part of the system which grants you access to and charges for the usage of a given service, such as - network access, voice calls, video on demand, text messages, etc.</p>
-
-<p>The basic parts of the usual RTS are:</p>
-
-<ul>
-<li>AAA protocol server, which will receive the AAA requests.</li>
-<li>A module, I will call it &#8220;Aggregation module&#8221;, which purpose is to calculate the answers (for those of you familiar with the 3GPP - it is somewat combined Account Balance Management Function (ABMF) and Rating Function (RF) ) .</li>
-</ul>
-
-
-<p>The AAA protocol is an important part. If you have ever heard about &#8216;RADIUS&#8217; - that&#8217;s it. It is a protocol widely used in ISPs and VoIP operators. What I am planning to use, however, is the RADIUS successor - Diameter. Partially, because the standard Erlang distribution has a Diameter library and partially, because I want to learn more about Diameter.</p>
-
-<p>The second part, which is even more interesting - the Aggregation - is the place where all the calculations will be done. For example - if you want to watch a film on demand or make a voice/video call the system has to check whether you have enough money on your balance and will grant or not access to the service - that&#8217;s the &#8216;authorization&#8217; part. After the end of the call it will calculate the amount to deduct from your balance, depending on the time you spent talking and the destination (local or international call, etc.). That&#8217;s the &#8216;accounting&#8217; part. Since there can be between hunderds and millions (if you are someone like AT&amp;T :-)  ) of subscribers, simultaneously using your services, the system has to be scalable. By &#8216;scalable&#8217; I mean - painlessly adding a new Aggregation module with a minimum effort. It looks like Riak would fit this purpose perfectly.</p>
-
-<p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert&#8217;s <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, as my expirience in Erlang, Diameter and Riak is relatively small, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
-
-<p>Now, let&#8217;s go to the first part of our <a href="http://vas.io/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">&#8220;Erlang RTS&#8221; project</a></p>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article>
       
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2012/05/10/the-first-one/">The First One</a></h1>
-    
-    
-      <p class="meta">
-        
 
 
 
@@ -1464,38 +1052,50 @@ What we need to do is to put the start() snippet from the above in the init() fu
   
 
 
-<time datetime="2012-05-10T23:00:00+01:00" pubdate data-updated="true">May 10<span>th</span>, 2012</time>
-        
-         | <a href="/blog/2012/05/10/the-first-one/#disqus_thread">Comments</a>
-        
-      </p>
+<time datetime="2012-05-13T18:32:00+01:00" pubdate data-updated="true">May 13<span>th</span>, 2012</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/diameter/'>Diameter</a>, <a class='category' href='/blog/categories/erlang/'>Erlang</a>, <a class='category' href='/blog/categories/rebar/'>rebar</a>
+  
+</span>
+
+
+    </p>
     
-  </header>
-
-
-  <div class="entry-content"><h2>A Word From The Author</h2>
-
-<p>Hello all!</p>
-
-<p>This is the second attempt to start a blog. This time my intention is to create a &#8216;working blog&#8217;. Here I will write about the new stuff I&#8217;m learning in programming and the reason to start this is because trying to explain something is the best way to learn. To quote <a href="http://blogs.msdn.com/b/ericlippert/">Eric Lippert</a>:</p>
-
-<blockquote><p>Writing a blog is also tremendously helpful; by requiring me to explain complex topics to other people, I am forced to confront my own inadequate understanding of various topics all the time.</p></blockquote>
-
-
-<p>So, for me it will be just a learning tool. If someone else finds it useful - that would be a bonus.</p>
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/" data-via="vasco_kk" data-counturl="http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/" >Tweet</a>
+  
+  
+  <div class="g-plusone" data-size="medium"></div>
+  
+  
+    <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
 </div>
-  
-  
 
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/05/11/erlang-real-time-server-introduction/" title="Previous Post: Erlang Real Time Server - Introduction">&laquo; Erlang Real Time Server - Introduction</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/" title="Next Post: Erlang-real-time-server-part-2-aggregation">Erlang-real-time-server-part-2-aggregation &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
 
-    </article>
-  
-  <div class="pagination">
-    
-    <a href="/blog/archives">Blog Archives</a>
-    
-  </div>
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
 </div>
+  </section>
+
+</div>
+
 <aside class="sidebar">
   
     <section>
@@ -1524,7 +1124,7 @@ What we need to do is to put the start() snippet from the above in the init() fu
 <section>
   <h1>GitHub Repos</h1>
   <ul id="gh_repos">
-    <li class="loading">Status updating&#8230;</li>
+    <li class="loading">Status updating...</li>
   </ul>
   
   <a href="https://github.com/vascokk">@vascokk</a> on GitHub
@@ -1554,7 +1154,7 @@ What we need to do is to put the start() snippet from the above in the init() fu
 <section>
   <h1>Latest Tweets</h1>
   <ul id="tweets">
-    <li class="loading">Status updating&#8230;</li>
+    <li class="loading">Status updating...</li>
   </ul>
   <script type="text/javascript">
     $.domReady(function(){
@@ -1574,6 +1174,7 @@ What we need to do is to put the start() snippet from the above in the init() fu
   
 </aside>
 
+
     </div>
   </div>
   <footer role="contentinfo"><p>
@@ -1588,7 +1189,10 @@ What we need to do is to put the start() snippet from the above in the init() fu
       var disqus_shortname = 'vasio';
       
         
-        var disqus_script = 'count.js';
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/';
+        var disqus_url = 'http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/';
+        var disqus_script = 'embed.js';
       
     (function () {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;

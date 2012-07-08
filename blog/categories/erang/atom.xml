@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Erang | Reinventing The Wheel]]></title>
+  <link href="http://vascokk.github.com/blog/categories/erang/atom.xml" rel="self"/>
+  <link href="http://vascokk.github.com/"/>
+  <updated>2012-07-08T15:36:40+01:00</updated>
+  <id>http://vascokk.github.com/</id>
+  <author>
+    <name><![CDATA[Vasco Kolarov]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang-real-time-server-part-2-aggregation]]></title>
+    <link href="http://vascokk.github.com/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/"/>
+    <updated>2012-06-06T18:39:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/06/06/erlang-real-time-server-part-2-aggregation</id>
+    <content type="html"><![CDATA[<h2>High level overview of the RTS</h2>
+
+<p>In a schematic view, the RTS will look like this:</p>
+
+<p><img src="/images/rts-part-2/RTS1.png" alt="" /></p>
+
+<p>The idea here is: As a result of Diameter request, command on Aggregation module will be invoked (e.g. "accounting()"). As the job, usually performed by this module is computationally intensive, the Aggregation will run on a Riak cluster and the command will be executed within this cluster.</p>
+
+<h2>Setting up a Riak cluster (or  "A very lame introduction to Riak")</h2>
+
+<p>Setting up a cluster could be a tedious job. Fortunately, there are always some giant's shoulders you can step on*. In this case I will use the Ryan Zezeski's RiakCore rebar <a href="https://github.com/rzezeski/rebar_riak_core">templates</a></p>
+
+<p>Once you clone the templates repository from GitHub, make a new Erlang application directory in <em>apps</em> and run <em>rebar</em> from it:</p>
+
+<p><code>bash
+&lt;project_root&gt; $ ./mkdir apps/aggregation
+&lt;project_root&gt; $ cd apps/aggregation
+&lt;project_root&gt;/apps/aggregation $ ../../rebar -f create template=riak_core_multinode appid=aggregation nodeid=aggregation
+</code></p>
+
+<p>With this run correctly, you should have the following files in the application's <em>src</em> directory:</p>
+
+<p><code>bash
+aggregation_app.erl
+aggregation.app.src
+aggregation_console.erl
+aggregation.erl
+aggregation.hrl
+aggregation_node_event_handler.erl
+aggregation_ring_event_handler.erl
+aggregation_sup.erl
+aggregation_vnode.erl
+</code></p>
+
+<p>What you are looking at is an application, which will start the Riak's working horse - the vnode. The vnode ("virtual node") is the building block of the Riak cluster. Riak itself is heavily influenced by Amazon's Dynamo paper - <a href="http://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf">"Dynamo: Amazon’s Highly Available Key-value Store"</a>. It is worth reading, but if you are not in an "academic mood" right now, here are some highlights:</p>
+
+<ul>
+<li>Riak is a distributed, highly scalable, key-value store</li>
+<li>Riak is usually deployed on a cluster (set of physical hosts called "nodes")</li>
+<li>each node runs a certain number of "virtual nodes" (or "vnodes")</li>
+<li>the vnode is responsible for a partition of the Riak "Ring"</li>
+<li>the Ring is a circular, ordered, 160 bit integer space (i.e. integers from 0 to 2<sup>160</sup> placed in circle)</li>
+<li>each element of the Ring represents a hash value computed of the key from a "key-value" pair (in fact it will be computed of the "bucket"+"key", but this is not so important at the moment)</li>
+<li>the number of partitions is always the same, whether you add a new node to the Cluster or take one off (i.e. a bit of a planning is needed upfront)</li>
+<li>the vnode can be used to store data or to perform computations (executing commands)</li>
+</ul>
+
+
+<p>I'll not go further into details, as <a href="http://wiki.basho.com">wiki.basho.com</a> is your best source of information, if you want to dive in. I'll just outline the "scalability" thing and how Riak will make our life easier:</p>
+
+<p>As you see in the second bullet from the bottom - the number of partitions is constant. It is set in the app.config's ring_creation_size parameter. Default number is 64 and there is no formal way to calculate it. It would be more or less empirically set by the developer. According to the Riak's wiki - for a mid-sized cluster of 8 to 16 nodes, the number should be between 128 and 512 partitions (always a power of 2), but this is definitely not "set on stone". Let's assume that we have set the optimal ring size already. At some point of time when the system is fully operational, we might need more computational power. Then, what we should do is:</p>
+
+<ol>
+<li>Deploy the application on a new node.</li>
+<li>"join" (one-line command) the new one to a randomly chosen node from the cluster (you can really pick any member, there is no "master node").</li>
+<li>....Wait...there is no 3rd... :)</li>
+</ol>
+
+
+<p>The new node will automatically claim a certain number of partitions, offloading the other nodes. Under the hood, Riak will use "handoff" procedures, "Gossip" protocol and other magics to do the job. What is important to us is that, due to the "consistent hashing" (more on this in some other article), the relocation of the vnodes will be transparent to the application(s) using the Riak cluster, as all the hash values are still on the same vnodes, even though, some of the vnodes are now residing on a different physical host. Cool, isn't it? The bottom line is: Scaling by adding a new host to the cluster is dead simple, but it will relocate a number of vnodes - not add new ones. So, be careful when you plan your Ring size.</p>
+
+<p>generated rebar.conf:
+``` erlang
+%% -<em>- erlang -</em>-
+{sub_dirs, ["rel", "apps/aggregation"]}.
+{cover_enabled, true}.
+{erl_opts, [debug_info, warnings_as_errors]}.
+{edoc_opts, [{dir, "../../doc"}]}.
+{deps, [{riak_core, "HEAD",</p>
+
+<pre><code>     {git, "https://github.com/basho/riak_core", {"HEAD"}}}
+   ]}.
+</code></pre>
+
+<p>```</p>
+
+<p>changed rebar.conf:</p>
+
+<p>``` erlang
+%% -<em>- erlang -</em>-
+{sub_dirs, ["rel", "apps/aggregation"]}.
+{cover_enabled, true}.
+{erl_opts, [debug_info, warnings_as_errors]}.
+{edoc_opts, [{dir, "../../doc"}]}.
+{deps, [{riak_core, "1.1.2",</p>
+
+<pre><code>     {git, "https://github.com/basho/riak_core", {"1.1.2"}}}
+   ]}.
+</code></pre>
+
+<p>{lib_dirs, ["apps", "deps"]}.
+```</p>
+
+<p>and compile:</p>
+
+<p>``` bash
+<project_root>/erlang-rts-part-2 $ ./rebar compile
+==> lager (compile)
+==> poolboy (compile)
+==> protobuffs (compile)
+==> basho_stats (compile)
+==> riak_sysmon (compile)
+==> mochiweb (compile)
+==> webmachine (compile)
+==> riak_core (compile)
+==> rel (compile)
+==> aggregation (compile)
+Compiled src/aggregation_sup.erl
+Compiled src/aggregation_node_event_handler.erl
+Compiled src/aggregation_app.erl
+Compiled src/aggregation_console.erl
+Compiled src/aggregation.erl
+Compiled src/aggregation_vnode.erl
+Compiled src/aggregation_ring_event_handler.erl
+==> erlang-rts-part-2 (compile)</p>
+
+<p>```</p>
+
+<h2>Create release nodes</h2>
+
+<p>At this moment <em>rel</em> directory should contain the <em>aggregation</em> release configuration file. Because we have 2 applications (<em>diaserver</em> and <em>aggregation</em>) I'll put them in separate <em>rel</em> subdirectories.</p>
+
+<p>First, create <em>aggregation</em> sub-directory and move the content of <em>rel</em> there. Next, edit the second line of reltool.config to match the directory structure:</p>
+
+<p>``` bash
+ {lib_dirs, ["../../apps/", "../../apps/aggregation/", "../../deps/"]},</p>
+
+<p>```</p>
+
+<p>Create the diaserver node (the same way as in Part1, only in different directory):</p>
+
+<p><code>bash
+mkdir diaserver
+cd diaserver
+rel/diaserver $ ../../rebar create-node nodeid=diaserver
+==&gt; diaserver (create-node)
+Writing reltool.config
+Writing files/erl
+Writing files/nodetool
+Writing files/diaserver
+Writing files/sys.config
+Writing files/vm.args
+Writing files/diaserver.cmd
+Writing files/start_erl.cmd
+</code></p>
+
+<p>Edit reltool.config the in the way already described in Part1.</p>
+
+<p>Create 2 aggregation release nodes. They will work on different ports and we will be able to run them on the same physical host. This way we will simulate a 2-host Riak cluster:</p>
+
+<p>``` bash
+erlang-rts-part-2/rel/aggregation $ ../../rebar generate target_dir=./dev/dev1 overlay_vars=vars/dev1.config appid=aggregation
+==> aggregation (generate)
+erlang-rts-part-2/rel/aggregation $ ../../rebar generate target_dir=./dev/dev2 overlay_vars=vars/dev2.config appid=aggregation
+==> aggregation (generate)</p>
+
+<p>```</p>
+
+<p>Now, let's test the Riak cluster. Open a terminal and start the first node:</p>
+
+<p>``` bash First console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev1/bin/aggregation console</p>
+
+<p>Exec: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/erts-5.8.4/bin/erlexec -boot /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/releases/1/aggregation -embedded -config /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/etc/app.config -args_file /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1/etc/vm.args -- console
+Root: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1
+Erlang R14B03 (erts-5.8.4) [source] [rq:1] [async-threads:5] [hipe] [kernel-poll:true]</p>
+
+<p>=INFO REPORT==== 21-Jun-2012::21:44:19 ===</p>
+
+<pre><code>alarm_handler: {set,{{disk_almost_full,"/"},[]}}
+</code></pre>
+
+<p>** Found 0 name clashes in code paths
+21:44:20.142 [info] Application lager started on node 'aggregation1@127.0.0.1'
+21:44:20.236 [warning] No ring file available.
+21:44:20.237 [info] Application riak_core started on node 'aggregation1@127.0.0.1'
+21:44:20.249 [info] Waiting for application aggregation to start (0 seconds).
+21:44:20.254 [info] Application aggregation started on node 'aggregation1@127.0.0.1'
+Eshell V5.8.4  (abort with ^G)
+(aggregation1@127.0.0.1)1> 21:44:20.351 [info] Wait complete for application aggregation (0 seconds)</p>
+
+<p>```</p>
+
+<p>We have the first node 'aggregation1@127.0.0.1' running.</p>
+
+<p>Open a second terminal window, start the second node and join it to the first one:</p>
+
+<p>``` bash Second console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation start
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation-admin join aggregation1@127.0.0.1</p>
+
+<p>Sent join request to aggregation1@127.0.0.1
+```</p>
+
+<p>Attach to the running second node and call aggregation:ping() few times. The result in my case is:</p>
+
+<p><code>bash Second console
+erlang-rts-part-2/rel/aggregation $ ./dev/dev2/bin/aggregation attach
+Attaching to /tmp//home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev2/erlang.pipe.1 (^D to exit)
+(aggregation2@127.0.0.1)1&gt; aggregation:ping().
+Ping received by node : 'aggregation2@127.0.0.1'
+{pong,479555224749202520035584085735030365824602865664}
+(aggregation2@127.0.0.1)2&gt; aggregation:ping().
+{pong,639406966332270026714112114313373821099470487552}
+(aggregation2@127.0.0.1)3&gt;
+</code></p>
+
+<p>As you see, the first invocation of ping() is received by the second node: "Ping received by node : 'aggregation2@127.0.0.1'". The second ping(), however, did not print anything. If we open the first console, we'll see:</p>
+
+<p><code>bash First console
+21:45:23.394 [info] 'aggregation2@127.0.0.1' joined cluster with status 'valid'
+Ping received by node : 'aggregation1@127.0.0.1'
+</code></p>
+
+<p>Hey, distributed unicorns! :)</p>
+
+<h2>Credits</h2>
+
+<p>Ryan Zezeski for the Riak <a href="https://github.com/rzezeski/try-try-try">tutorial</a> and rebar <a href="https://github.com/rzezeski/rebar_riak_core">templates</a></p>
+
+<h2>References</h2>
+
+<p>(*) <a href="http://en.wikipedia.org/wiki/Standing_on_the_shoulders_of_giants">"Standing on the shoulders of giants"</a></p>
+]]></content>
+  </entry>
+  
+</feed>
