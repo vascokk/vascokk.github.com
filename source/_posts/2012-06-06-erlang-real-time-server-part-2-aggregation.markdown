@@ -19,6 +19,7 @@ In a schematic view, the RTS will look like this:
 
 The idea here is: As a result of Diameter request, command on Aggregation module will be invoked (e.g. "accounting()"). As the job, usually performed by this module is computationally intensive, the Aggregation will run on a Riak cluster and the command will be executed within this cluster.
 
+
 Setting up a Riak cluster (or  "A very lame introduction to Riak")
 -------------------------------------------------------------------
 
