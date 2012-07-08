@@ -3,8 +3,8 @@ layout: post
 title: "Erlang-real-time-server-part-2-aggregation"
 date: 2012-06-06 18:39
 comments: true
-categories: Erang Diameter Riak rebar
-published: false
+categories: Erang Diameter Riak rebar RiakCore
+published: true
 ---
 
 High level overview of the RTS
@@ -17,14 +17,14 @@ In a schematic view, the RTS will look like this:
 ![](/images/rts-part-2/RTS1.png)
 
 
-The idea here is: As a result of Diameter request, a command on Aggregation module will be invoked (e.g. "accounting()"). As it will be computational intensive, the Aggregation will run on a Riak cluster and the command will be executed within this cluster.
+The idea here is: As a result of Diameter request, command on Aggregation module will be invoked (e.g. "accounting()"). As the job, usually performed by this module is computationally intensive, the Aggregation will run on a Riak cluster and the command will be executed within this cluster.
 
 Setting up a Riak cluster (or  "A very lame introduction to Riak")
 -------------------------------------------------------------------
 
 Setting up a cluster could be a tedious job. Fortunately, there are always some giant's shoulders you can step on\*. In this case I will use the Ryan Zezeski's RiakCore rebar [templates](https://github.com/rzezeski/rebar_riak_core)
 
-Once you clone the templates repository from GitHub, make a new erlang application directory in _apps_ and run _rebar_ from it:
+Once you clone the templates repository from GitHub, make a new Erlang application directory in _apps_ and run _rebar_ from it:
 
 
 ``` bash
@@ -50,7 +50,7 @@ aggregation_vnode.erl
 What you are looking at is an application, which will start the Riak's working horse - the vnode. The vnode ("virtual node") is the building block of the Riak cluster. Riak itself is heavily influenced by Amazon's Dynamo paper - ["Dynamo: Amazon’s Highly Available Key-value Store"](http://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf). It is worth reading, but if you are not in an "academic mood" right now, here are some highlights:
 
 - Riak is a distributed, highly scalable, key-value store
-- Riak is usually deployed on a cluster (set of phisical hosts called "nodes")
+- Riak is usually deployed on a cluster (set of physical hosts called "nodes")
 - each node runs a certain number of "virtual nodes" (or "vnodes")
 - the vnode is responsible for a partition of the Riak "Ring" 
 - the Ring is a circular, ordered, 160 bit integer space (i.e. integers from 0 to 2^160 placed in circle)
@@ -60,13 +60,13 @@ What you are looking at is an application, which will start the Riak's working h
 
 I'll not go further into details, as [wiki.basho.com](http://wiki.basho.com) is your best source of information, if you want to dive in. I'll just outline the "scalability" thing and how Riak will make our life easier:
 
-As you see in the second bullet from the bootom - the number of partitions is constant. It is set in the app.config's _ring_creation_size_ parameter. Default number is 64 and there is no formal way to calculate it. It would be more or less empirically set by the developer. According to the Riak's wiki - for a mid-sized cluster of 8 to 16 nodes, the number should be between 128 and 512 partitions (always a power of 2), but this is definitely not "set on stone". Let's assume that we have set the optimal ring size already. At some point of time when the system is fully operational, we might need more computational power. Then, what we should do is: 
+As you see in the second bullet from the bottom - the number of partitions is constant. It is set in the app.config's ring_creation_size parameter. Default number is 64 and there is no formal way to calculate it. It would be more or less empirically set by the developer. According to the Riak's wiki - for a mid-sized cluster of 8 to 16 nodes, the number should be between 128 and 512 partitions (always a power of 2), but this is definitely not "set on stone". Let's assume that we have set the optimal ring size already. At some point of time when the system is fully operational, we might need more computational power. Then, what we should do is: 
 
 1. Deploy the application on a new node. 
 2. "join" (one-line command) the new one to a randomly chosen node from the cluster (you can really pick any member, there is no "master node"). 
 3. ....Wait...there is no 3rd... :)
 
-The new node will automatically claim a certain number of partitions, offloading the other nodes. Under the hood, Riak will use "handoff" procedures, "Gossip" protocol and other magics to do the job. What is important to us is that, due to the "consistent hashing" (more on this in some other article), the relocation of the vnodes will be transparent to the application(s) using the Riak cluster, as all the hash values are still on the same vnodes, even though, some of the vnodes are now residing on a different phisical host. Cool, isn't it? The bottom line is: Scaling by adding a new host to the cluster is dead simple, but it will relocate a number of vnodes - not add new ones. So, be careful when you plan your Ring size.
+The new node will automatically claim a certain number of partitions, offloading the other nodes. Under the hood, Riak will use "handoff" procedures, "Gossip" protocol and other magics to do the job. What is important to us is that, due to the "consistent hashing" (more on this in some other article), the relocation of the vnodes will be transparent to the application(s) using the Riak cluster, as all the hash values are still on the same vnodes, even though, some of the vnodes are now residing on a different physical host. Cool, isn't it? The bottom line is: Scaling by adding a new host to the cluster is dead simple, but it will relocate a number of vnodes - not add new ones. So, be careful when you plan your Ring size.
 
 
 
@@ -155,7 +155,7 @@ Writing files/start_erl.cmd
 
 Edit reltool.config the in the way already described in Part1.
 
-Create 2 aggregation release nodes. They will work on different ports and we will be able to run them on the same phisical host. This way we will simulate a 2-host Riak cluster:
+Create 2 aggregation release nodes. They will work on different ports and we will be able to run them on the same physical host. This way we will simulate a 2-host Riak cluster:
 
 ``` bash
 erlang-rts-part-2/rel/aggregation $ ../../rebar generate target_dir=./dev/dev1 overlay_vars=vars/dev1.config appid=aggregation
@@ -219,17 +219,7 @@ As you see, the first invocation of ping() is received by the second node: "Ping
 Ping received by node : 'aggregation1@127.0.0.1'
 ```
 
-Hey, distibuted unicorns! :)
-
-
-Tying up with the Diameter server
-----------------------------------
-
-
-
-
-
-
+Hey, distributed unicorns! :)
 
 
 Credits
