@@ -222,6 +222,8 @@ Ping received by node : 'aggregation1@127.0.0.1'
 
 Hey, distributed unicorns! :)
 
+Now, we can change the aggregation() command to our needs or create any other command we need to call from the Diameter server.  
+
 
 Credits
 ---------
