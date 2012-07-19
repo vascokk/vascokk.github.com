@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Diameter | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/diameter/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-19T21:00:48+01:00</updated>
+  <updated>2012-07-19T21:06:14+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -18,7 +18,7 @@
     <link href="http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together/"/>
     <updated>2012-07-15T17:16:00+01:00</updated>
     <id>http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together</id>
-    <content type="html"><![CDATA[<h2>Need for load-balancing</h2>
+    <content type="html"><![CDATA[<h2>The need for load-balancing</h2>
 
 <p>As you have probably noted in the <a href="http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Part 2</a> we always send Riak commands to only one node. That doesn't seem to be right, so, what about some load balancing solution? There are two ways to solving this:</p>
 
