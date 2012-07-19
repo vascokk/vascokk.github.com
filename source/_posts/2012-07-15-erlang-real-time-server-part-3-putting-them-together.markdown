@@ -162,49 +162,8 @@ For _reltool.config_ we need to:
 
 For the _app.config_ we need to configure the TCP port on which diaserver will listen.
 
-``` bash
-%% -*- erlang -*-
-[
- %% Riak Core config
- {riak_core, [
-              %% Default location of ringstate
-              {ring_state_dir, "{{ring_state_dir}}"},
+{% gist 3146816 %}
 
-              %% http is a list of IP addresses and TCP ports that the Riak
-              %% HTTP interface will bind.
-              {http, [ {"{{web_ip}}", {{web_port}} } ]},
-
-              %% https is a list of IP addresses and TCP ports that the Riak
-              %% HTTPS interface will bind.
-              %{https, [{ "{{web_ip}}", {{web_port}} }]},
-
-              %% default cert and key locations for https can be overridden
-              %% with the ssl config variable
-              %{ssl, [
-              %       {certfile, "etc/cert.pem"},
-              %       {keyfile, "etc/key.pem"}
-              %      ]},
-
-              %% riak_handoff_port is the TCP port that Riak uses for
-              %% intra-cluster data handoff.
-              {handoff_port, {{handoff_port}} }
-             ]},
-
- %% SASL config
- {sasl, [
-         {sasl_error_logger, {file, "log/sasl-error.log"}},
-         {errlog_type, error},
-         {error_logger_mf_dir, "log/sasl"},      % Log directory
-         {error_logger_mf_maxbytes, 10485760},   % 10 MB max file size
-         {error_logger_mf_maxfiles, 5}           % 5 files max
-        ]},
- {diaserver, [
-                {diameter_port, {{diameter_port}} }
-            ]}
-
-].
-
-```
 
 I only added the last _diaserver_ tuple. As you see the {{diameter\_port}} is a template parameter. It will be substituted with the value specific for each "dev" node. For this purpose we have 3 "dev" configuration files in the _dev_ directory. Here is the content of the first one:
 
