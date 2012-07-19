@@ -4,7 +4,7 @@
   <title><![CDATA[Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-19T21:28:11+01:00</updated>
+  <updated>2012-07-19T22:17:26+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -270,87 +270,47 @@
 
 <p>For the <em>app.config</em> we need to configure the TCP port on which diaserver will listen.</p>
 
-<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
-<span class='line-number'>2</span>
-<span class='line-number'>3</span>
-<span class='line-number'>4</span>
-<span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
-<span class='line-number'>8</span>
-<span class='line-number'>9</span>
-<span class='line-number'>10</span>
-<span class='line-number'>11</span>
-<span class='line-number'>12</span>
-<span class='line-number'>13</span>
-<span class='line-number'>14</span>
-<span class='line-number'>15</span>
-<span class='line-number'>16</span>
-<span class='line-number'>17</span>
-<span class='line-number'>18</span>
-<span class='line-number'>19</span>
-<span class='line-number'>20</span>
-<span class='line-number'>21</span>
-<span class='line-number'>22</span>
-<span class='line-number'>23</span>
-<span class='line-number'>24</span>
-<span class='line-number'>25</span>
-<span class='line-number'>26</span>
-<span class='line-number'>27</span>
-<span class='line-number'>28</span>
-<span class='line-number'>29</span>
-<span class='line-number'>30</span>
-<span class='line-number'>31</span>
-<span class='line-number'>32</span>
-<span class='line-number'>33</span>
-<span class='line-number'>34</span>
-<span class='line-number'>35</span>
-<span class='line-number'>36</span>
-<span class='line-number'>37</span>
-<span class='line-number'>38</span>
-<span class='line-number'>39</span>
-<span class='line-number'>40</span>
-</pre></td><td class='code'><pre><code class='bash'><span class='line'>%% -*- erlang -*-
-</span><span class='line'><span class="o">[</span>
-</span><span class='line'> %% Riak Core config
-</span><span class='line'> <span class="o">{</span>riak_core, <span class="o">[</span>
-</span><span class='line'>              %% Default location of ringstate
-</span><span class='line'>              <span class="o">{</span>ring_state_dir, <span class="s2">&quot;&quot;</span><span class="o">}</span>,
-</span><span class='line'>
-</span><span class='line'>              %% http is a list of IP addresses and TCP ports that the Riak
-</span><span class='line'>              %% HTTP interface will bind.
-</span><span class='line'>              <span class="o">{</span>http, <span class="o">[</span> <span class="o">{</span><span class="s2">&quot;&quot;</span>, <span class="o"></span> <span class="o">}</span> <span class="o">]}</span>,
-</span><span class='line'>
-</span><span class='line'>              %% https is a list of IP addresses and TCP ports that the Riak
-</span><span class='line'>              %% HTTPS interface will bind.
-</span><span class='line'>              %<span class="o">{</span>https, <span class="o">[{</span> <span class="s2">&quot;&quot;</span>, <span class="o"></span> <span class="o">}]}</span>,
-</span><span class='line'>
-</span><span class='line'>              %% default cert and key locations <span class="k">for </span>https can be overridden
-</span><span class='line'>              %% with the ssl config variable
-</span><span class='line'>              %<span class="o">{</span>ssl, <span class="o">[</span>
-</span><span class='line'>              %       <span class="o">{</span>certfile, <span class="s2">&quot;etc/cert.pem&quot;</span><span class="o">}</span>,
-</span><span class='line'>              %       <span class="o">{</span>keyfile, <span class="s2">&quot;etc/key.pem&quot;</span><span class="o">}</span>
-</span><span class='line'>              %      <span class="o">]}</span>,
-</span><span class='line'>
-</span><span class='line'>              %% riak_handoff_port is the TCP port that Riak uses <span class="k">for</span>
-</span><span class='line'>              %% intra-cluster data handoff.
-</span><span class='line'>              <span class="o">{</span>handoff_port, <span class="o"></span> <span class="o">}</span>
-</span><span class='line'>             <span class="o">]}</span>,
-</span><span class='line'>
-</span><span class='line'> %% SASL config
-</span><span class='line'> <span class="o">{</span>sasl, <span class="o">[</span>
-</span><span class='line'>         <span class="o">{</span>sasl_error_logger, <span class="o">{</span>file, <span class="s2">&quot;log/sasl-error.log&quot;</span><span class="o">}}</span>,
-</span><span class='line'>         <span class="o">{</span>errlog_type, error<span class="o">}</span>,
-</span><span class='line'>         <span class="o">{</span>error_logger_mf_dir, <span class="s2">&quot;log/sasl&quot;</span><span class="o">}</span>,      % Log directory
-</span><span class='line'>         <span class="o">{</span>error_logger_mf_maxbytes, 10485760<span class="o">}</span>,   % 10 MB max file size
-</span><span class='line'>         <span class="o">{</span>error_logger_mf_maxfiles, 5<span class="o">}</span>           % 5 files max
-</span><span class='line'>        <span class="o">]}</span>,
-</span><span class='line'> <span class="o">{</span>diaserver, <span class="o">[</span>
-</span><span class='line'>                <span class="o">{</span>diameter_port, <span class="o"></span> <span class="o">}</span>
-</span><span class='line'>            <span class="o">]}</span>
-</span><span class='line'>
-</span><span class='line'><span class="o">]</span>.
-</span></code></pre></td></tr></table></div></figure>
+<div><script src='https://gist.github.com/3146816.js?file='></script>
+<noscript><pre><code>%% -*- erlang -*-
+[
+ %% Riak Core config
+ {riak_core, [
+              %% Default location of ringstate
+              {ring_state_dir, &quot;{{ring_state_dir}}&quot;},
+
+              %% http is a list of IP addresses and TCP ports that the Riak
+              %% HTTP interface will bind.
+              {http, [ {&quot;{{web_ip}}&quot;, {{web_port}} } ]},
+
+              %% https is a list of IP addresses and TCP ports that the Riak
+              %% HTTPS interface will bind.
+              %{https, [{ &quot;{{web_ip}}&quot;, {{web_port}} }]},
+
+              %% default cert and key locations for https can be overridden
+              %% with the ssl config variable
+              %{ssl, [
+              %       {certfile, &quot;etc/cert.pem&quot;},
+              %       {keyfile, &quot;etc/key.pem&quot;}
+              %      ]},
+
+              %% riak_handoff_port is the TCP port that Riak uses for
+              %% intra-cluster data handoff.
+              {handoff_port, {{handoff_port}} }
+             ]},
+
+ %% SASL config
+ {sasl, [
+         {sasl_error_logger, {file, &quot;log/sasl-error.log&quot;}},
+         {errlog_type, error},
+         {error_logger_mf_dir, &quot;log/sasl&quot;},      % Log directory
+         {error_logger_mf_maxbytes, 10485760},   % 10 MB max file size
+         {error_logger_mf_maxfiles, 5}           % 5 files max
+        ]},
+ {diaserver, [
+                {diameter_port, {{diameter_port}} }
+            ]}
+
+].</code></pre></noscript></div>
 
 
 <p>I only added the last <em>diaserver</em> tuple. As you see the  is a template parameter. It will be substituted with the value specific for each &#8220;dev&#8221; node. For this purpose we have 3 &#8220;dev&#8221; configuration files in the <em>dev</em> directory. Here is the content of the first one:</p>

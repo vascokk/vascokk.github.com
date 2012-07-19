@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Diameter | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/diameter/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-19T21:28:11+01:00</updated>
+  <updated>2012-07-19T22:17:26+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -188,56 +188,7 @@ Writing ./vars/dev3.config</p>
 
 <p>For the <em>app.config</em> we need to configure the TCP port on which diaserver will listen.</p>
 
-<p>``` bash
-%% -<em>- erlang -</em>-
-[
- %% Riak Core config
- {riak_core, [</p>
-
-<pre><code>          %% Default location of ringstate
-          {ring_state_dir, "{{ring_state_dir}}"},
-
-          %% http is a list of IP addresses and TCP ports that the Riak
-          %% HTTP interface will bind.
-          {http, [ {"{{web_ip}}", {{web_port}} } ]},
-
-          %% https is a list of IP addresses and TCP ports that the Riak
-          %% HTTPS interface will bind.
-          %{https, [{ "{{web_ip}}", {{web_port}} }]},
-
-          %% default cert and key locations for https can be overridden
-          %% with the ssl config variable
-          %{ssl, [
-          %       {certfile, "etc/cert.pem"},
-          %       {keyfile, "etc/key.pem"}
-          %      ]},
-
-          %% riak_handoff_port is the TCP port that Riak uses for
-          %% intra-cluster data handoff.
-          {handoff_port, {{handoff_port}} }
-         ]},
-</code></pre>
-
-<p> %% SASL config
- {sasl, [</p>
-
-<pre><code>     {sasl_error_logger, {file, "log/sasl-error.log"}},
-     {errlog_type, error},
-     {error_logger_mf_dir, "log/sasl"},      % Log directory
-     {error_logger_mf_maxbytes, 10485760},   % 10 MB max file size
-     {error_logger_mf_maxfiles, 5}           % 5 files max
-    ]},
-</code></pre>
-
-<p> {diaserver, [</p>
-
-<pre><code>            {diameter_port, {{diameter_port}} }
-        ]}
-</code></pre>
-
-<p>].</p>
-
-<p>```</p>
+<p>{% gist 3146816 %}</p>
 
 <p>I only added the last <em>diaserver</em> tuple. As you see the {{diameter_port}} is a template parameter. It will be substituted with the value specific for each "dev" node. For this purpose we have 3 "dev" configuration files in the <em>dev</em> directory. Here is the content of the first one:</p>
 

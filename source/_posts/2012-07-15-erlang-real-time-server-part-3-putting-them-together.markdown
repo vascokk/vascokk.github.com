@@ -164,7 +164,6 @@ For the _app.config_ we need to configure the TCP port on which diaserver will l
 
 {% gist 3146816 %}
 
-
 I only added the last _diaserver_ tuple. As you see the {{diameter\_port}} is a template parameter. It will be substituted with the value specific for each "dev" node. For this purpose we have 3 "dev" configuration files in the _dev_ directory. Here is the content of the first one:
 
 ``` bash
