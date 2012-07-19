@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Riak | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/riak/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-19T21:00:48+01:00</updated>
+  <updated>2012-07-19T21:28:11+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -18,19 +18,19 @@
     <link href="http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together/"/>
     <updated>2012-07-15T17:16:00+01:00</updated>
     <id>http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together</id>
-    <content type="html"><![CDATA[<h2>Need for load-balancing</h2>
+    <content type="html"><![CDATA[<h2>The need for load-balancing</h2>
 
-<p>As you have probably noted in the <a href="http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Part 2</a> we always send Riak commands to only one node. That doesn't seem to be right, so, what about some load balancing solution? There are two ways to solving this:</p>
+<p>As you have probably noted in <a href="http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Part 2</a> we always send Riak commands to one of the nodes. That doesn't seem to be right, so, what about some load balancing? There are at least two ways to solve this:</p>
 
 <ul>
-<li>sending command from Diameter Server to Riak cluster using a load-balancing mechanism, or:</li>
-<li>sending (load-balanced) Diameter messages directly to the cluster, in which case we need the <em>diaserver</em> application to reside on the nodes running the Riak cluster.</li>
+<li>send commands from Diameter Server to Riak cluster in load-balanced fashion, or:</li>
+<li>couple Diameter server with  RiakCore application in one node and send Diameter messages directly to the RiakCluster in a load-balanced fashion.</li>
 </ul>
 
 
-<p>If we choose the first approach, we can use HTTP or ProtocolBuffer interface to access Riak from <em>diaserver</em> and use some HTTP/TCP proxy to load-balance the requests (e.g. HAProxy is a good one). The inconvenience here comes from the fact that we have to write a separate HTTP POST requests or implement a PB interface. The last one is probably a good idea for a future blog post.</p>
+<p>If we choose the first approach, we can use HTTP or ProtocolBuffer interface to access Riak from <em>diaserver</em> and use some HTTP/TCP proxy to load-balance the requests (e.g. HAProxy is a good one). The inconvenience here comes from the fact that we have to write a separate HTTP POST requests or implement a PB interface for every Diameter command. (But, this is probably a good idea for a future blog post)</p>
 
-<p>In the second case we can use a Diameter Relay/Forward agent to distribute Diameter messages among the cluster or (again) a TCP proxy, since one of the Diameter transports is TCP. For the sake of simplicity I'll use the latest approach.</p>
+<p>In the second case we can use a Diameter Relay/Forward agent to distribute Diameter messages among the cluster or (again) a TCP proxy, since one of the possible Diameter transports is TCP. For the sake of simplicity I'll use this approach.</p>
 
 <p>First of all, as our applications will be running on the same Riak cluster, I'll change the <em>diaserver</em> callback module. At the moment this module is responsible for creating the Diameter Accounting Answer message. Instead, I'll just make a call to aggregation:accounting() function with parameter - the Diameter Accounting Request.</p>
 
