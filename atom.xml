@@ -4,7 +4,7 @@
   <title><![CDATA[Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-18T23:08:55+01:00</updated>
+  <updated>2012-07-19T21:00:48+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -12,6 +12,685 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang Real Time Server - Part 3 - Putting Parts Together]]></title>
+    <link href="http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together/"/>
+    <updated>2012-07-15T17:16:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together</id>
+    <content type="html"><![CDATA[<h2>Need for load-balancing</h2>
+
+<p>As you have probably noted in the <a href="http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Part 2</a> we always send Riak commands to only one node. That doesn&#8217;t seem to be right, so, what about some load balancing solution? There are two ways to solving this:</p>
+
+<ul>
+<li>sending command from Diameter Server to Riak cluster using a load-balancing mechanism, or:</li>
+<li>sending (load-balanced) Diameter messages directly to the cluster, in which case we need the <em>diaserver</em> application to reside on the nodes running the Riak cluster.</li>
+</ul>
+
+
+<p>If we choose the first approach, we can use HTTP or ProtocolBuffer interface to access Riak from <em>diaserver</em> and use some HTTP/TCP proxy to load-balance the requests (e.g. HAProxy is a good one). The inconvenience here comes from the fact that we have to write a separate HTTP POST requests or implement a PB interface. The last one is probably a good idea for a future blog post.</p>
+
+<p>In the second case we can use a Diameter Relay/Forward agent to distribute Diameter messages among the cluster or (again) a TCP proxy, since one of the Diameter transports is TCP. For the sake of simplicity I&#8217;ll use the latest approach.</p>
+
+<p>First of all, as our applications will be running on the same Riak cluster, I&#8217;ll change the <em>diaserver</em> callback module. At the moment this module is responsible for creating the Diameter Accounting Answer message. Instead, I&#8217;ll just make a call to aggregation:accounting() function with parameter - the Diameter Accounting Request.</p>
+
+<p>Change the <em>accounting()</em> function in <em>aggregation.erl</em> module:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">accounting</span><span class="p">(</span><span class="nv">Req</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>    <span class="nv">DocIdx</span> <span class="o">=</span> <span class="nn">riak_core_util</span><span class="p">:</span><span class="n">chash_key</span><span class="p">({</span><span class="o">&lt;&lt;</span><span class="s">&quot;accounting&quot;</span><span class="o">&gt;&gt;</span><span class="p">,</span> <span class="nb">term_to_binary</span><span class="p">(</span><span class="n">now</span><span class="p">())}),</span>
+</span><span class='line'>    <span class="nv">PrefList</span> <span class="o">=</span> <span class="nn">riak_core_apl</span><span class="p">:</span><span class="n">get_primary_apl</span><span class="p">(</span><span class="nv">DocIdx</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">aggregation</span><span class="p">),</span>
+</span><span class='line'>    <span class="p">[{</span><span class="nv">IndexNode</span><span class="p">,</span> <span class="p">_</span><span class="nv">Type</span><span class="p">}]</span> <span class="o">=</span> <span class="nv">PrefList</span><span class="p">,</span>
+</span><span class='line'>    <span class="nn">riak_core_vnode_master</span><span class="p">:</span><span class="n">sync_spawn_command</span><span class="p">(</span><span class="nv">IndexNode</span><span class="p">,</span> <span class="p">{</span><span class="n">accounting</span><span class="p">,</span> <span class="nv">Req</span><span class="p">},</span> <span class="n">aggregation_vnode_master</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Don&#8217;t forget to change also the arity in the export clause to /1.</p>
+
+<p>Next, the handle_call() in the aggregation_vnode module:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">handle_command</span><span class="p">({</span><span class="n">accounting</span><span class="p">,</span> <span class="nv">Req</span><span class="p">},</span> <span class="p">_</span><span class="nv">Sender</span><span class="p">,</span> <span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>    <span class="c">%%TODO Process accounting request</span>
+</span><span class='line'>    <span class="nv">Req</span><span class="p">,</span>
+</span><span class='line'>    <span class="nv">ResponseCode</span> <span class="o">=</span> <span class="no">?&#39;DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS&#39;</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="p">{</span><span class="n">reply</span><span class="p">,</span> <span class="nv">ResponseCode</span><span class="p">,</span> <span class="nv">State</span><span class="p">};</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For the sake of the exercise, we are just going to return SUCCESS, but actually this is the place where you should do all the processing of the Diameter request.</p>
+
+<p>The last step is to call aggregation:accounting(Req) from the diameter callback module:</p>
+
+<figure class='code'><figcaption><span>server_cb.erl</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">handle_request</span><span class="p">(</span><span class="nl">#diameter_packet</span><span class="p">{</span><span class="n">msg</span> <span class="o">=</span> <span class="nv">Req</span><span class="p">,</span> <span class="n">errors</span> <span class="o">=</span> <span class="p">[]},</span> <span class="p">_</span><span class="nv">SvcName</span><span class="p">,</span> <span class="p">{_,</span> <span class="nv">Caps</span><span class="p">})</span>
+</span><span class='line'>                  <span class="k">when</span> <span class="nb">is_record</span><span class="p">(</span><span class="nv">Req</span><span class="p">,</span> <span class="n">diameter_base_ACR</span><span class="p">)</span> <span class="o">-&gt;</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="nl">#diameter_caps</span><span class="p">{</span><span class="n">origin_host</span> <span class="o">=</span> <span class="p">{</span><span class="nv">OH</span><span class="p">,_},</span>
+</span><span class='line'>                   <span class="n">origin_realm</span> <span class="o">=</span> <span class="p">{</span><span class="nv">OR</span><span class="p">,_}}</span>
+</span><span class='line'>            <span class="o">=</span> <span class="nv">Caps</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>            <span class="nl">#diameter_base_ACR</span><span class="p">{</span><span class="n">&#39;Session-Id&#39;</span> <span class="o">=</span> <span class="nv">Id</span><span class="p">,</span>
+</span><span class='line'>                       <span class="n">&#39;Accounting-Record-Type&#39;</span> <span class="o">=</span> <span class="nv">RecType</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Number&#39;</span> <span class="o">=</span> <span class="nv">RecNum</span><span class="p">,</span>
+</span><span class='line'>                           <span class="n">&#39;Acct-Application-Id&#39;</span> <span class="o">=</span> <span class="nv">AccAppId</span> <span class="p">}</span>
+</span><span class='line'>            <span class="o">=</span> <span class="nv">Req</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="nv">ResultCode</span> <span class="o">=</span> <span class="nn">aggregation</span><span class="p">:</span><span class="n">accounting</span><span class="p">(</span><span class="nv">Req</span><span class="p">),</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="nv">Ans</span> <span class="o">=</span> <span class="nl">#diameter_base_ACA</span><span class="p">{</span><span class="n">&#39;Result-Code&#39;</span> <span class="o">=</span> <span class="nv">ResultCode</span><span class="p">,</span> <span class="c">%%?&#39;DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS&#39;,</span>
+</span><span class='line'>                       <span class="n">&#39;Origin-Host&#39;</span> <span class="o">=</span> <span class="nv">OH</span><span class="p">,</span>
+</span><span class='line'>                           <span class="n">&#39;Origin-Realm&#39;</span> <span class="o">=</span> <span class="nv">OR</span><span class="p">,</span>
+</span><span class='line'>                           <span class="n">&#39;Session-Id&#39;</span> <span class="o">=</span> <span class="nv">Id</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Type&#39;</span> <span class="o">=</span> <span class="nv">RecType</span><span class="p">,</span>
+</span><span class='line'>                               <span class="n">&#39;Accounting-Record-Number&#39;</span> <span class="o">=</span> <span class="nv">RecNum</span><span class="p">,</span>
+</span><span class='line'>                           <span class="n">&#39;Acct-Application-Id&#39;</span> <span class="o">=</span> <span class="nv">AccAppId</span>
+</span><span class='line'>        <span class="p">},</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="p">{</span><span class="n">reply</span><span class="p">,</span> <span class="nv">Ans</span><span class="p">}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now, what is left is - to put <em>diaserver</em> and <em>aggregation</em> applications together in one erlang &#8220;release&#8221;:</p>
+
+<h2>Building the &#8220;RTS&#8221; node</h2>
+
+<p>I&#8217;m going to the same as I did in the previous post - using the rebar-riak-core templates, but this time I&#8217;ll use a slightly modified <a href="https://github.com/vascokk/rebar_riak_core/blob/master/riak_core_multinode_simple.template">&#8220;multinode template&#8221;</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span><span class="nb">cd </span>rel
+</span><span class='line'><span class="nv">$ </span>mkdir rts
+</span><span class='line'><span class="nv">$ </span><span class="nb">cd </span>rts
+</span><span class='line'><span class="nv">$ </span>../../rebar -f create <span class="nv">template</span><span class="o">=</span>riak_core_multinode_simple <span class="nv">nodeid</span><span class="o">=</span>rts <span class="nv">target_dir</span><span class="o">=</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">==</span>&gt; rts <span class="o">(</span>create<span class="o">)</span>
+</span><span class='line'>Writing ./reltool.config
+</span><span class='line'>Writing ./files/erl
+</span><span class='line'>Writing ./files/nodetool
+</span><span class='line'>Writing ./files/rts
+</span><span class='line'>Writing ./files/app.config
+</span><span class='line'>Writing ./files/vm.args
+</span><span class='line'>Writing .gitignore
+</span><span class='line'>Writing Makefile
+</span><span class='line'>Writing ./files/rts-admin
+</span><span class='line'>Writing ./vars.config
+</span><span class='line'>Writing ./vars/dev1.config
+</span><span class='line'>Writing ./vars/dev2.config
+</span><span class='line'>Writing ./vars/dev3.config
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>Now, we have to edit <em>reltool.config</em> and <em>app.config</em>:</p>
+
+<p>For <em>reltool.config</em> we need to:</p>
+
+<ul>
+<li>change lib_dirs with appropriate paths</li>
+<li>add <em>diaserver</em> and <em>aggregation</em> to the list of application need to be started by this release</li>
+<li>add application specific configuration</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="o">{</span>sys, <span class="o">[</span>    
+</span><span class='line'>       <span class="o">{</span>lib_dirs, <span class="o">[</span><span class="s2">&quot;../../apps/&quot;</span>, <span class="s2">&quot;../../deps/&quot;</span><span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>rel, <span class="s2">&quot;rts&quot;</span>, <span class="s2">&quot;1&quot;</span>,
+</span><span class='line'>        <span class="o">[</span>
+</span><span class='line'>         kernel,
+</span><span class='line'>         stdlib,
+</span><span class='line'>         sasl,
+</span><span class='line'>         %% add our applications
+</span><span class='line'>         aggregation,
+</span><span class='line'>         diaserver
+</span><span class='line'>        <span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>rel, <span class="s2">&quot;start_clean&quot;</span>, <span class="s2">&quot;&quot;</span>,
+</span><span class='line'>        <span class="o">[</span>
+</span><span class='line'>         kernel,
+</span><span class='line'>         stdlib
+</span><span class='line'>        <span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>boot_rel, <span class="s2">&quot;rts&quot;</span><span class="o">}</span>,
+</span><span class='line'>       <span class="o">{</span>profile, embedded<span class="o">}</span>,
+</span><span class='line'>       <span class="o">{</span>excl_sys_filters, <span class="o">[</span><span class="s2">&quot;^bin/.*&quot;</span>,
+</span><span class='line'>                           <span class="s2">&quot;^erts.*/bin/(dialyzer|typer)&quot;</span><span class="o">]}</span>,
+</span><span class='line'>       <span class="o">{</span>app, sasl, <span class="o">[{</span>incl_cond, include<span class="o">}]}</span>,
+</span><span class='line'>       %%add application specific configurations
+</span><span class='line'>       <span class="o">{</span>app, aggregation, <span class="o">[{</span>incl_cond, include<span class="o">}]}</span>,
+</span><span class='line'>       <span class="o">{</span>app, diaserver, <span class="o">[{</span>incl_cond, include<span class="o">}]}</span>
+</span><span class='line'>      <span class="o">]}</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">{</span>target_dir, <span class="s2">&quot;rts&quot;</span><span class="o">}</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">{</span>overlay_vars, <span class="s2">&quot;vars.config&quot;</span><span class="o">}</span>.
+</span><span class='line'>
+</span><span class='line'><span class="o">{</span>overlay, <span class="o">[</span>
+</span><span class='line'>           <span class="o">{</span>mkdir, <span class="s2">&quot;data/ring&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>mkdir, <span class="s2">&quot;log/sasl&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/erl&quot;</span>, <span class="s2">&quot;\{\{erts_vsn\}\}/bin/erl&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>copy, <span class="s2">&quot;files/nodetool&quot;</span>, <span class="s2">&quot;\{\{erts_vsn\}\}/bin/nodetool&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>template, <span class="s2">&quot;files/app.config&quot;</span>, <span class="s2">&quot;etc/app.config&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>template, <span class="s2">&quot;files/vm.args&quot;</span>, <span class="s2">&quot;etc/vm.args&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>template, <span class="s2">&quot;files/rts&quot;</span>, <span class="s2">&quot;bin/rts&quot;</span><span class="o">}</span>,
+</span><span class='line'>           <span class="o">{</span>template, <span class="s2">&quot;files/rts-admin&quot;</span>, <span class="s2">&quot;bin/rts-admin&quot;</span><span class="o">}</span>
+</span><span class='line'>           <span class="o">]}</span>.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>For the <em>app.config</em> we need to configure the TCP port on which diaserver will listen.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>%% -*- erlang -*-
+</span><span class='line'><span class="o">[</span>
+</span><span class='line'> %% Riak Core config
+</span><span class='line'> <span class="o">{</span>riak_core, <span class="o">[</span>
+</span><span class='line'>              %% Default location of ringstate
+</span><span class='line'>              <span class="o">{</span>ring_state_dir, <span class="s2">&quot;&quot;</span><span class="o">}</span>,
+</span><span class='line'>
+</span><span class='line'>              %% http is a list of IP addresses and TCP ports that the Riak
+</span><span class='line'>              %% HTTP interface will bind.
+</span><span class='line'>              <span class="o">{</span>http, <span class="o">[</span> <span class="o">{</span><span class="s2">&quot;&quot;</span>, <span class="o"></span> <span class="o">}</span> <span class="o">]}</span>,
+</span><span class='line'>
+</span><span class='line'>              %% https is a list of IP addresses and TCP ports that the Riak
+</span><span class='line'>              %% HTTPS interface will bind.
+</span><span class='line'>              %<span class="o">{</span>https, <span class="o">[{</span> <span class="s2">&quot;&quot;</span>, <span class="o"></span> <span class="o">}]}</span>,
+</span><span class='line'>
+</span><span class='line'>              %% default cert and key locations <span class="k">for </span>https can be overridden
+</span><span class='line'>              %% with the ssl config variable
+</span><span class='line'>              %<span class="o">{</span>ssl, <span class="o">[</span>
+</span><span class='line'>              %       <span class="o">{</span>certfile, <span class="s2">&quot;etc/cert.pem&quot;</span><span class="o">}</span>,
+</span><span class='line'>              %       <span class="o">{</span>keyfile, <span class="s2">&quot;etc/key.pem&quot;</span><span class="o">}</span>
+</span><span class='line'>              %      <span class="o">]}</span>,
+</span><span class='line'>
+</span><span class='line'>              %% riak_handoff_port is the TCP port that Riak uses <span class="k">for</span>
+</span><span class='line'>              %% intra-cluster data handoff.
+</span><span class='line'>              <span class="o">{</span>handoff_port, <span class="o"></span> <span class="o">}</span>
+</span><span class='line'>             <span class="o">]}</span>,
+</span><span class='line'>
+</span><span class='line'> %% SASL config
+</span><span class='line'> <span class="o">{</span>sasl, <span class="o">[</span>
+</span><span class='line'>         <span class="o">{</span>sasl_error_logger, <span class="o">{</span>file, <span class="s2">&quot;log/sasl-error.log&quot;</span><span class="o">}}</span>,
+</span><span class='line'>         <span class="o">{</span>errlog_type, error<span class="o">}</span>,
+</span><span class='line'>         <span class="o">{</span>error_logger_mf_dir, <span class="s2">&quot;log/sasl&quot;</span><span class="o">}</span>,      % Log directory
+</span><span class='line'>         <span class="o">{</span>error_logger_mf_maxbytes, 10485760<span class="o">}</span>,   % 10 MB max file size
+</span><span class='line'>         <span class="o">{</span>error_logger_mf_maxfiles, 5<span class="o">}</span>           % 5 files max
+</span><span class='line'>        <span class="o">]}</span>,
+</span><span class='line'> <span class="o">{</span>diaserver, <span class="o">[</span>
+</span><span class='line'>                <span class="o">{</span>diameter_port, <span class="o"></span> <span class="o">}</span>
+</span><span class='line'>            <span class="o">]}</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">]</span>.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>I only added the last <em>diaserver</em> tuple. As you see the  is a template parameter. It will be substituted with the value specific for each &#8220;dev&#8221; node. For this purpose we have 3 &#8220;dev&#8221; configuration files in the <em>dev</em> directory. Here is the content of the first one:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>%%
+</span><span class='line'>%% etc/app.config
+</span><span class='line'>%%
+</span><span class='line'><span class="o">{</span>ring_state_dir,        <span class="s2">&quot;data/ring&quot;</span><span class="o">}</span>.
+</span><span class='line'><span class="o">{</span>web_ip,                <span class="s2">&quot;127.0.0.1&quot;</span><span class="o">}</span>.
+</span><span class='line'><span class="o">{</span>web_port,              <span class="s2">&quot;8091&quot;</span><span class="o">}</span>.
+</span><span class='line'><span class="o">{</span>handoff_port,          <span class="s2">&quot;8101&quot;</span><span class="o">}</span>.
+</span><span class='line'><span class="o">{</span>diameter_port,         <span class="s2">&quot;7071&quot;</span><span class="o">}</span>.
+</span><span class='line'>
+</span><span class='line'>%%
+</span><span class='line'>%% etc/vm.args
+</span><span class='line'>%%
+</span><span class='line'><span class="o">{</span>node,                  <span class="s2">&quot;rts1@127.0.0.1&quot;</span><span class="o">}</span>.
+</span><span class='line'><span class="o">{</span>cookie,                <span class="s2">&quot;rts&quot;</span><span class="o">}</span>.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In this case I put 7071 for Diameter port, for the other 2 nodes the ports will be 7072 and 7073. Using this &#8220;dev&#8221; configurations will allow us to run 3 (or more if we want) Riak nodes running both <em>aggregation</em> and <em>diaserver</em> applications on the same host.</p>
+
+<p>Compile and build the development release:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>&lt;project_root&gt;<span class="nv">$ </span>make
+</span><span class='line'>&lt;project_root&gt;<span class="nv">$ </span>make <span class="nv">devrel</span>
+</span><span class='line'><span class="o">==</span>&gt; rts <span class="o">(</span>generate<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Last thing - we need the  <em>rel/rts/files/rts-admin</em> script to join our Riak nodes once they are started. If you open this file you&#8217;ll notice that it calls &#8220;myapp_console&#8221; application, we have to change this to &#8220;aggregation_console&#8221; (see the <em>app/aggregation/src</em> directory).</p>
+
+<p>And we are done with the RTS!</p>
+
+<p>We can now run 3 nodes, each one listening for Diameter messages on a different port. As you remember, the initial idea was to distribute the messages to these nodes via TCP proxy, so let&#8217;s:</p>
+
+<h2>Setup the HAProxy</h2>
+
+<p>This part is relatively easy. First download and install the HAProxy:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>wget http://haproxy.1wt.eu/download/1.4/src/haproxy-1.4.20.tar.gz
+</span><span class='line'>
+</span><span class='line'>.....
+</span><span class='line'>
+</span><span class='line'><span class="nv">$ </span>tar -xzf haproxy-1.4.20.tar.gz
+</span><span class='line'>
+</span><span class='line'>.....
+</span><span class='line'>
+</span><span class='line'><span class="nv">$ </span><span class="nb">cd </span>haproxy-1.4.20
+</span><span class='line'><span class="nv">$ </span>make <span class="nv">TARGET</span><span class="o">=</span>linux26
+</span><span class='line'><span class="nv">$ </span>sudo make install
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The above <em>make</em> has the option <em>TARGET=linux26</em>, which might be different in your case. To determine the linux kernel version use &#8220;uname -r&#8221; command.</p>
+
+<p>If the HAProxy installation is okay, create a configuration file. In our case it looks like this:</p>
+
+<figure class='code'><figcaption><span>dev.haproxy.config</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>global
+</span><span class='line'>  <span class="c"># specify the maximum connections across the board</span>
+</span><span class='line'>  maxconn 2048
+</span><span class='line'>  <span class="c"># enable debug output</span>
+</span><span class='line'>  debug
+</span><span class='line'>
+</span><span class='line'><span class="c"># now set the default settings for each sub-section</span>
+</span><span class='line'>defaults
+</span><span class='line'>  <span class="c"># stick with http traffic</span>
+</span><span class='line'>  mode http
+</span><span class='line'>  <span class="c"># set the number of times HAProxy should attempt to</span>
+</span><span class='line'>  <span class="c"># connect to the target</span>
+</span><span class='line'>  retries 3
+</span><span class='line'>  <span class="c"># specify the number of connections per front and</span>
+</span><span class='line'>  <span class="c"># back end</span>
+</span><span class='line'>  maxconn 1024
+</span><span class='line'>  <span class="c"># specify some timeouts (all in milliseconds)</span>
+</span><span class='line'>  timeout connect 5000
+</span><span class='line'>
+</span><span class='line'><span class="c">########### Riak Configuration ###################</span>
+</span><span class='line'>
+</span><span class='line'>frontend diaserver
+</span><span class='line'>  mode tcp
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># bind to default DIAMETER port 3868</span>
+</span><span class='line'>  <span class="nb">bind </span>127.0.0.1:3868
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># Default to the riak cluster configuration</span>
+</span><span class='line'>  default_backend riak_cluster
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># timeouts</span>
+</span><span class='line'>  timeout client 1200000
+</span><span class='line'>
+</span><span class='line'><span class="c"># Here is the magic bit which load balances across</span>
+</span><span class='line'><span class="c"># our instances of riak_core which are clustered</span>
+</span><span class='line'><span class="c"># together</span>
+</span><span class='line'>backend riak_cluster
+</span><span class='line'>  mode tcp
+</span><span class='line'>  balance roundrobin
+</span><span class='line'>  <span class="c"># timeouts</span>
+</span><span class='line'>  timeout server 1200000
+</span><span class='line'>  timeout connect 3000
+</span><span class='line'>
+</span><span class='line'>  server rts1 127.0.0.1:7071 check
+</span><span class='line'>  server rts2 127.0.0.1:7072 check
+</span><span class='line'>  server rts3 127.0.0.1:7073 check
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The idea here is pretty obvious (right?): our &#8220;frontend&#8221; (i.e. what the external world will see) is the standard Diameter port 3868. All the TCP packets sent to this port will be forwarded on a round-robin fashion to the &#8220;backend&#8221;, which is our 3 dev release erlang nodes, each of them listening to a different diameter port.</p>
+
+<p>And that&#8217;s it! We only need to run everything and see how it works:</p>
+
+<p>Open a terminal window and start the first node:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>./rel/rts/dev/dev1/bin/rts console
+</span><span class='line'>
+</span><span class='line'>19:01:11.204 <span class="o">[</span>info<span class="o">]</span> Application crypto started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.208 <span class="o">[</span>info<span class="o">]</span> Application riak_sysmon started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.239 <span class="o">[</span>info<span class="o">]</span> Application inets started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.243 <span class="o">[</span>info<span class="o">]</span> Application mochiweb started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>** Found 0 name clashes in code paths
+</span><span class='line'>19:01:11.277 <span class="o">[</span>info<span class="o">]</span> Application webmachine started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.311 <span class="o">[</span>info<span class="o">]</span> Application os_mon started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.322 <span class="o">[</span>info<span class="o">]</span> Application folsom started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.470 <span class="o">[</span>info<span class="o">]</span> New capability: <span class="o">{</span>riak_core,vnode_routing<span class="o">}</span> <span class="o">=</span> proxy
+</span><span class='line'>19:01:11.471 <span class="o">[</span>info<span class="o">]</span> New capability: <span class="o">{</span>riak_core,staged_joins<span class="o">}</span> <span class="o">=</span> <span class="nb">true</span>
+</span><span class='line'>19:01:11.473 <span class="o">[</span>info<span class="o">]</span> Application riak_core started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.509 <span class="o">[</span>info<span class="o">]</span> Waiting <span class="k">for </span>application aggregation to start <span class="o">(</span>0 seconds<span class="o">)</span>.
+</span><span class='line'>19:01:11.515 <span class="o">[</span>info<span class="o">]</span> Application aggregation started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.568 <span class="o">[</span>info<span class="o">]</span> Application diameter started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>19:01:11.575 <span class="o">[</span>info<span class="o">]</span> Starting diameter on IP: <span class="o">{</span>127,0,0,1<span class="o">}</span>
+</span><span class='line'>19:01:11.575 <span class="o">[</span>info<span class="o">]</span> Starting diameter on port: 7071
+</span><span class='line'>19:01:11.611 <span class="o">[</span>info<span class="o">]</span> Wait <span class="nb">complete </span><span class="k">for </span>application aggregation <span class="o">(</span>0 seconds<span class="o">)</span>
+</span><span class='line'>19:01:11.614 <span class="o">[</span>info<span class="o">]</span> Application diaserver started on node <span class="s1">&#39;rts1@127.0.0.1&#39;</span>
+</span><span class='line'>Eshell V5.9.1  <span class="o">(</span>abort with ^G<span class="o">)</span>
+</span><span class='line'><span class="o">(</span>rts1@127.0.0.1<span class="o">)</span>1&gt;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Open a new terminal and start the second node and join it to the first one::</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>rel/rts/dev/dev2/bin/rts start
+</span><span class='line'><span class="nv">$ </span>rel/rts/dev/dev2/bin/rts-admin join rts1@127.0.0.1
+</span><span class='line'>Sent join request to rts1@127.0.0.1
+</span><span class='line'>
+</span><span class='line'>....on the first one you should get:
+</span><span class='line'>
+</span><span class='line'><span class="o">(</span>rts1@127.0.0.1<span class="o">)</span>1&gt; 20:13:44.622 <span class="o">[</span>info<span class="o">]</span> <span class="s1">&#39;rts2@127.0.0.1&#39;</span> joined cluster with status <span class="s1">&#39;valid&#39;</span>
+</span><span class='line'>
+</span><span class='line'>....attach to the second rts console:
+</span><span class='line'>
+</span><span class='line'><span class="nv">$ </span>rel/rts/dev/dev2/bin/rts attach
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now, run the HAProxy:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'> <span class="nv">$ </span>sudo haproxy -f dev.haproxy.config -d
+</span><span class='line'>Available polling systems :
+</span><span class='line'>     sepoll : <span class="nv">pref</span><span class="o">=</span>400,  <span class="nb">test </span>result OK
+</span><span class='line'>      epoll : <span class="nv">pref</span><span class="o">=</span>300,  <span class="nb">test </span>result OK
+</span><span class='line'>       poll : <span class="nv">pref</span><span class="o">=</span>200,  <span class="nb">test </span>result OK
+</span><span class='line'>     <span class="k">select</span> : <span class="nv">pref</span><span class="o">=</span>150,  <span class="nb">test </span>result OK
+</span><span class='line'>Total: 4 <span class="o">(</span>4 usable<span class="o">)</span>, will use sepoll.
+</span><span class='line'>Using sepoll<span class="o">()</span> as the polling mechanism.
+</span><span class='line'><span class="o">[</span>WARNING<span class="o">]</span> 200/202744 <span class="o">(</span>10525<span class="o">)</span> : Server riak_cluster/rts3 is DOWN, reason: Layer4 connection problem, info: <span class="s2">&quot;Connection refused&quot;</span>, check duration: 0ms. 2 active and 0 backup servers left. 0 sessions active, 0 requeued, 0 remaining in queue.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Run another erlang shell and test with diameter client (see Part 2):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Eshell V5.9.1  <span class="o">(</span>abort with ^G<span class="o">)</span>
+</span><span class='line'>1&gt; diameter:start<span class="o">()</span>.
+</span><span class='line'>ok
+</span><span class='line'>2&gt; client:start<span class="o">()</span>.
+</span><span class='line'>ok
+</span><span class='line'>3&gt; client:connect<span class="o">(</span>tcp<span class="o">)</span>.
+</span><span class='line'><span class="o">{</span>ok,#Ref&lt;0.0.0.50&gt;<span class="o">}</span>
+</span><span class='line'>4&gt; client:call_ACR<span class="o">()</span>.
+</span><span class='line'><span class="o">{</span>ok,<span class="o">{</span>diameter_base_ACA,<span class="s2">&quot;client;1404231385;1;nonode@nohost&quot;</span>,
+</span><span class='line'>                       2001,<span class="s2">&quot;diameter_srv.example.com&quot;</span>,<span class="s2">&quot;example.com&quot;</span>,1,1,<span class="o">[]</span>,
+</span><span class='line'>                       <span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]</span>,<span class="o">[]}}</span>
+</span><span class='line'>5&gt;
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'>....you should see the connection request accepted on the console running the HAProxy:
+</span><span class='line'>
+</span><span class='line'>00000000:diaserver.accept<span class="o">(</span>0004<span class="o">)=</span>0005 from <span class="o">[</span>127.0.0.1:33979<span class="o">]</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you execute the client:call_ACR() several times, you should see the request going to the first or the second node. The balance policy is not really a round-robin, because we have another routing layer in RiacCore, which sends the requests to the appropriate Riak partition.</p>
+
+<p>You can run the 3rd node, if you want and here we go - a real-time billing in the cloud :-) Well, we are far, far from it - we need to implement all the Diameter commands and wee  need a backend system to manage our subscribers and tariffs, but at least we just built some foundations for a Diameter-based AAA system.</p>
+
+<p>Project files are available one GitHub in repository <a href="https://github.com/vascokk/diameter-test">diameter_test</a></p>
+
+<p>Happy hacking! :-)</p>
+
+<h2>Credits</h2>
+
+<ul>
+<li>OJ Reeves for the HAProxy <a href="http://buffered.io/posts/webmachine-erlydtl-and-riak-part-2/">mini-tutorial</a></li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Erlang Real Time Server - Part 2 - Aggregation]]></title>

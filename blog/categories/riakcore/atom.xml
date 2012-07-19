@@ -4,7 +4,7 @@
   <title><![CDATA[Category: RiakCore | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/riakcore/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-18T23:08:55+01:00</updated>
+  <updated>2012-07-19T21:00:48+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -12,6 +12,450 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang Real Time Server - Part 3 - Putting Parts Together]]></title>
+    <link href="http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together/"/>
+    <updated>2012-07-15T17:16:00+01:00</updated>
+    <id>http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together</id>
+    <content type="html"><![CDATA[<h2>Need for load-balancing</h2>
+
+<p>As you have probably noted in the <a href="http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Part 2</a> we always send Riak commands to only one node. That doesn't seem to be right, so, what about some load balancing solution? There are two ways to solving this:</p>
+
+<ul>
+<li>sending command from Diameter Server to Riak cluster using a load-balancing mechanism, or:</li>
+<li>sending (load-balanced) Diameter messages directly to the cluster, in which case we need the <em>diaserver</em> application to reside on the nodes running the Riak cluster.</li>
+</ul>
+
+
+<p>If we choose the first approach, we can use HTTP or ProtocolBuffer interface to access Riak from <em>diaserver</em> and use some HTTP/TCP proxy to load-balance the requests (e.g. HAProxy is a good one). The inconvenience here comes from the fact that we have to write a separate HTTP POST requests or implement a PB interface. The last one is probably a good idea for a future blog post.</p>
+
+<p>In the second case we can use a Diameter Relay/Forward agent to distribute Diameter messages among the cluster or (again) a TCP proxy, since one of the Diameter transports is TCP. For the sake of simplicity I'll use the latest approach.</p>
+
+<p>First of all, as our applications will be running on the same Riak cluster, I'll change the <em>diaserver</em> callback module. At the moment this module is responsible for creating the Diameter Accounting Answer message. Instead, I'll just make a call to aggregation:accounting() function with parameter - the Diameter Accounting Request.</p>
+
+<p>Change the <em>accounting()</em> function in <em>aggregation.erl</em> module:</p>
+
+<p>``` erlang
+accounting(Req) -></p>
+
+<pre><code>DocIdx = riak_core_util:chash_key({&lt;&lt;"accounting"&gt;&gt;, term_to_binary(now())}),
+PrefList = riak_core_apl:get_primary_apl(DocIdx, 1, aggregation),
+[{IndexNode, _Type}] = PrefList,
+riak_core_vnode_master:sync_spawn_command(IndexNode, {accounting, Req}, aggregation_vnode_master).
+</code></pre>
+
+<p>```</p>
+
+<p>Don't forget to change also the arity in the export clause to /1.</p>
+
+<p>Next, the handle_call() in the aggregation_vnode module:</p>
+
+<p>``` erlang
+handle_command({accounting, Req}, _Sender, State) -></p>
+
+<pre><code>%%TODO Process accounting request
+Req,
+ResponseCode = ?'DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS',
+
+{reply, ResponseCode, State};
+</code></pre>
+
+<p>```</p>
+
+<p>For the sake of the exercise, we are just going to return SUCCESS, but actually this is the place where you should do all the processing of the Diameter request.</p>
+
+<p>The last step is to call aggregation:accounting(Req) from the diameter callback module:</p>
+
+<p>``` erlang server_cb.erl
+handle_request(#diameter_packet{msg = Req, errors = []}, <em>SvcName, {</em>, Caps})</p>
+
+<pre><code>              when is_record(Req, diameter_base_ACR) -&gt;
+
+    #diameter_caps{origin_host = {OH,_},
+               origin_realm = {OR,_}}
+        = Caps,
+
+        #diameter_base_ACR{'Session-Id' = Id,
+                   'Accounting-Record-Type' = RecType,
+                           'Accounting-Record-Number' = RecNum,
+                       'Acct-Application-Id' = AccAppId }
+        = Req,
+
+    ResultCode = aggregation:accounting(Req),
+
+    Ans = #diameter_base_ACA{'Result-Code' = ResultCode, %%?'DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS',
+                   'Origin-Host' = OH,
+                       'Origin-Realm' = OR,
+                       'Session-Id' = Id,
+                           'Accounting-Record-Type' = RecType,
+                           'Accounting-Record-Number' = RecNum,
+                       'Acct-Application-Id' = AccAppId
+    },
+
+    {reply, Ans}.
+</code></pre>
+
+<p>```</p>
+
+<p>Now, what is left is - to put <em>diaserver</em> and <em>aggregation</em> applications together in one erlang "release":</p>
+
+<h2>Building the "RTS" node</h2>
+
+<p>I'm going to the same as I did in the previous post - using the rebar-riak-core templates, but this time I'll use a slightly modified <a href="https://github.com/vascokk/rebar_riak_core/blob/master/riak_core_multinode_simple.template">"multinode template"</a>:</p>
+
+<p>``` bash
+$ cd rel
+$ mkdir rts
+$ cd rts
+$ ../../rebar -f create template=riak_core_multinode_simple nodeid=rts target_dir=.</p>
+
+<p>==> rts (create)
+Writing ./reltool.config
+Writing ./files/erl
+Writing ./files/nodetool
+Writing ./files/rts
+Writing ./files/app.config
+Writing ./files/vm.args
+Writing .gitignore
+Writing Makefile
+Writing ./files/rts-admin
+Writing ./vars.config
+Writing ./vars/dev1.config
+Writing ./vars/dev2.config
+Writing ./vars/dev3.config</p>
+
+<p>```</p>
+
+<p>Now, we have to edit <em>reltool.config</em> and <em>app.config</em>:</p>
+
+<p>For <em>reltool.config</em> we need to:</p>
+
+<ul>
+<li>change lib_dirs with appropriate paths</li>
+<li>add <em>diaserver</em> and <em>aggregation</em> to the list of application need to be started by this release</li>
+<li>add application specific configuration</li>
+</ul>
+
+
+<p>``` bash
+{sys, [</p>
+
+<pre><code>   {lib_dirs, ["../../apps/", "../../deps/"]},
+   {rel, "rts", "1",
+    [
+     kernel,
+     stdlib,
+     sasl,
+     %% add our applications
+     aggregation,
+     diaserver
+    ]},
+   {rel, "start_clean", "",
+    [
+     kernel,
+     stdlib
+    ]},
+   {boot_rel, "rts"},
+   {profile, embedded},
+   {excl_sys_filters, ["^bin/.*",
+                       "^erts.*/bin/(dialyzer|typer)"]},
+   {app, sasl, [{incl_cond, include}]},
+   %%add application specific configurations
+   {app, aggregation, [{incl_cond, include}]},
+   {app, diaserver, [{incl_cond, include}]}
+  ]}.
+</code></pre>
+
+<p>{target_dir, "rts"}.</p>
+
+<p>{overlay_vars, "vars.config"}.</p>
+
+<p>{overlay, [</p>
+
+<pre><code>       {mkdir, "data/ring"},
+       {mkdir, "log/sasl"},
+       {copy, "files/erl", "\{\{erts_vsn\}\}/bin/erl"},
+       {copy, "files/nodetool", "\{\{erts_vsn\}\}/bin/nodetool"},
+       {template, "files/app.config", "etc/app.config"},
+       {template, "files/vm.args", "etc/vm.args"},
+       {template, "files/rts", "bin/rts"},
+       {template, "files/rts-admin", "bin/rts-admin"}
+       ]}.
+</code></pre>
+
+<p>```</p>
+
+<p>For the <em>app.config</em> we need to configure the TCP port on which diaserver will listen.</p>
+
+<p>``` bash
+%% -<em>- erlang -</em>-
+[
+ %% Riak Core config
+ {riak_core, [</p>
+
+<pre><code>          %% Default location of ringstate
+          {ring_state_dir, "{{ring_state_dir}}"},
+
+          %% http is a list of IP addresses and TCP ports that the Riak
+          %% HTTP interface will bind.
+          {http, [ {"{{web_ip}}", {{web_port}} } ]},
+
+          %% https is a list of IP addresses and TCP ports that the Riak
+          %% HTTPS interface will bind.
+          %{https, [{ "{{web_ip}}", {{web_port}} }]},
+
+          %% default cert and key locations for https can be overridden
+          %% with the ssl config variable
+          %{ssl, [
+          %       {certfile, "etc/cert.pem"},
+          %       {keyfile, "etc/key.pem"}
+          %      ]},
+
+          %% riak_handoff_port is the TCP port that Riak uses for
+          %% intra-cluster data handoff.
+          {handoff_port, {{handoff_port}} }
+         ]},
+</code></pre>
+
+<p> %% SASL config
+ {sasl, [</p>
+
+<pre><code>     {sasl_error_logger, {file, "log/sasl-error.log"}},
+     {errlog_type, error},
+     {error_logger_mf_dir, "log/sasl"},      % Log directory
+     {error_logger_mf_maxbytes, 10485760},   % 10 MB max file size
+     {error_logger_mf_maxfiles, 5}           % 5 files max
+    ]},
+</code></pre>
+
+<p> {diaserver, [</p>
+
+<pre><code>            {diameter_port, {{diameter_port}} }
+        ]}
+</code></pre>
+
+<p>].</p>
+
+<p>```</p>
+
+<p>I only added the last <em>diaserver</em> tuple. As you see the {{diameter_port}} is a template parameter. It will be substituted with the value specific for each "dev" node. For this purpose we have 3 "dev" configuration files in the <em>dev</em> directory. Here is the content of the first one:</p>
+
+<p>``` bash
+%%
+%% etc/app.config
+%%
+{ring_state_dir,        "data/ring"}.
+{web_ip,                "127.0.0.1"}.
+{web_port,              "8091"}.
+{handoff_port,          "8101"}.
+{diameter_port,         "7071"}.</p>
+
+<p>%%
+%% etc/vm.args
+%%
+{node,                  "rts1@127.0.0.1"}.
+{cookie,                "rts"}.
+```</p>
+
+<p>In this case I put 7071 for Diameter port, for the other 2 nodes the ports will be 7072 and 7073. Using this "dev" configurations will allow us to run 3 (or more if we want) Riak nodes running both <em>aggregation</em> and <em>diaserver</em> applications on the same host.</p>
+
+<p>Compile and build the development release:</p>
+
+<p><code>bash
+&lt;project_root&gt;$ make
+&lt;project_root&gt;$ make devrel
+==&gt; rts (generate)
+</code></p>
+
+<p>Last thing - we need the  <em>rel/rts/files/rts-admin</em> script to join our Riak nodes once they are started. If you open this file you'll notice that it calls "myapp_console" application, we have to change this to "aggregation_console" (see the <em>app/aggregation/src</em> directory).</p>
+
+<p>And we are done with the RTS!</p>
+
+<p>We can now run 3 nodes, each one listening for Diameter messages on a different port. As you remember, the initial idea was to distribute the messages to these nodes via TCP proxy, so let's:</p>
+
+<h2>Setup the HAProxy</h2>
+
+<p>This part is relatively easy. First download and install the HAProxy:</p>
+
+<p>``` bash
+$ wget http://haproxy.1wt.eu/download/1.4/src/haproxy-1.4.20.tar.gz</p>
+
+<p>.....</p>
+
+<p>$ tar -xzf haproxy-1.4.20.tar.gz</p>
+
+<p>.....</p>
+
+<p>$ cd haproxy-1.4.20
+$ make TARGET=linux26
+$ sudo make install
+```</p>
+
+<p>The above <em>make</em> has the option <em>TARGET=linux26</em>, which might be different in your case. To determine the linux kernel version use "uname -r" command.</p>
+
+<p>If the HAProxy installation is okay, create a configuration file. In our case it looks like this:</p>
+
+<p>``` bash dev.haproxy.config
+global
+  # specify the maximum connections across the board
+  maxconn 2048
+  # enable debug output
+  debug</p>
+
+<h1>now set the default settings for each sub-section</h1>
+
+<p>defaults
+  # stick with http traffic
+  mode http
+  # set the number of times HAProxy should attempt to
+  # connect to the target
+  retries 3
+  # specify the number of connections per front and
+  # back end
+  maxconn 1024
+  # specify some timeouts (all in milliseconds)
+  timeout connect 5000</p>
+
+<h6>##### Riak Configuration</h6>
+
+<p>frontend diaserver
+  mode tcp</p>
+
+<p>  # bind to default DIAMETER port 3868
+  bind 127.0.0.1:3868</p>
+
+<p>  # Default to the riak cluster configuration
+  default_backend riak_cluster</p>
+
+<p>  # timeouts
+  timeout client 1200000</p>
+
+<h1>Here is the magic bit which load balances across</h1>
+
+<h1>our instances of riak_core which are clustered</h1>
+
+<h1>together</h1>
+
+<p>backend riak_cluster
+  mode tcp
+  balance roundrobin
+  # timeouts
+  timeout server 1200000
+  timeout connect 3000</p>
+
+<p>  server rts1 127.0.0.1:7071 check
+  server rts2 127.0.0.1:7072 check
+  server rts3 127.0.0.1:7073 check</p>
+
+<p>```</p>
+
+<p>The idea here is pretty obvious (right?): our "frontend" (i.e. what the external world will see) is the standard Diameter port 3868. All the TCP packets sent to this port will be forwarded on a round-robin fashion to the "backend", which is our 3 dev release erlang nodes, each of them listening to a different diameter port.</p>
+
+<p>And that's it! We only need to run everything and see how it works:</p>
+
+<p>Open a terminal window and start the first node:</p>
+
+<p>``` bash
+$ ./rel/rts/dev/dev1/bin/rts console</p>
+
+<p>19:01:11.204 [info] Application crypto started on node 'rts1@127.0.0.1'
+19:01:11.208 [info] Application riak_sysmon started on node 'rts1@127.0.0.1'
+19:01:11.239 [info] Application inets started on node 'rts1@127.0.0.1'
+19:01:11.243 [info] Application mochiweb started on node 'rts1@127.0.0.1'
+** Found 0 name clashes in code paths
+19:01:11.277 [info] Application webmachine started on node 'rts1@127.0.0.1'
+19:01:11.311 [info] Application os_mon started on node 'rts1@127.0.0.1'
+19:01:11.322 [info] Application folsom started on node 'rts1@127.0.0.1'
+19:01:11.470 [info] New capability: {riak_core,vnode_routing} = proxy
+19:01:11.471 [info] New capability: {riak_core,staged_joins} = true
+19:01:11.473 [info] Application riak_core started on node 'rts1@127.0.0.1'
+19:01:11.509 [info] Waiting for application aggregation to start (0 seconds).
+19:01:11.515 [info] Application aggregation started on node 'rts1@127.0.0.1'
+19:01:11.568 [info] Application diameter started on node 'rts1@127.0.0.1'
+19:01:11.575 [info] Starting diameter on IP: {127,0,0,1}
+19:01:11.575 [info] Starting diameter on port: 7071
+19:01:11.611 [info] Wait complete for application aggregation (0 seconds)
+19:01:11.614 [info] Application diaserver started on node 'rts1@127.0.0.1'
+Eshell V5.9.1  (abort with ^G)
+(rts1@127.0.0.1)1>
+```</p>
+
+<p>Open a new terminal and start the second node and join it to the first one::</p>
+
+<p>``` bash
+$ rel/rts/dev/dev2/bin/rts start
+$ rel/rts/dev/dev2/bin/rts-admin join rts1@127.0.0.1
+Sent join request to rts1@127.0.0.1</p>
+
+<p>....on the first one you should get:</p>
+
+<p>(rts1@127.0.0.1)1> 20:13:44.622 [info] 'rts2@127.0.0.1' joined cluster with status 'valid'</p>
+
+<p>....attach to the second rts console:</p>
+
+<p>$ rel/rts/dev/dev2/bin/rts attach</p>
+
+<p>```</p>
+
+<p>Now, run the HAProxy:</p>
+
+<p>``` bash
+ $ sudo haproxy -f dev.haproxy.config -d
+Available polling systems :</p>
+
+<pre><code> sepoll : pref=400,  test result OK
+  epoll : pref=300,  test result OK
+   poll : pref=200,  test result OK
+ select : pref=150,  test result OK
+</code></pre>
+
+<p>Total: 4 (4 usable), will use sepoll.
+Using sepoll() as the polling mechanism.
+[WARNING] 200/202744 (10525) : Server riak_cluster/rts3 is DOWN, reason: Layer4 connection problem, info: "Connection refused", check duration: 0ms. 2 active and 0 backup servers left. 0 sessions active, 0 requeued, 0 remaining in queue.</p>
+
+<p>```</p>
+
+<p>Run another erlang shell and test with diameter client (see Part 2):</p>
+
+<p>``` bash
+Eshell V5.9.1  (abort with ^G)
+1> diameter:start().
+ok
+2> client:start().
+ok
+3> client:connect(tcp).
+{ok,#Ref&lt;0.0.0.50>}
+4> client:call_ACR().
+{ok,{diameter_base_ACA,"client;1404231385;1;nonode@nohost",</p>
+
+<pre><code>                   2001,"diameter_srv.example.com","example.com",1,1,[],
+                   [],[],[],[],[],[],[],[],[],[],[],[]}}
+</code></pre>
+
+<p>5></p>
+
+<p>....you should see the connection request accepted on the console running the HAProxy:</p>
+
+<p>00000000:diaserver.accept(0004)=0005 from [127.0.0.1:33979]
+```</p>
+
+<p>If you execute the client:call_ACR() several times, you should see the request going to the first or the second node. The balance policy is not really a round-robin, because we have another routing layer in RiacCore, which sends the requests to the appropriate Riak partition.</p>
+
+<p>You can run the 3rd node, if you want and here we go - a real-time billing in the cloud :-) Well, we are far, far from it - we need to implement all the Diameter commands and wee  need a backend system to manage our subscribers and tariffs, but at least we just built some foundations for a Diameter-based AAA system.</p>
+
+<p>Project files are available one GitHub in repository <a href="https://github.com/vascokk/diameter-test">diameter_test</a></p>
+
+<p>Happy hacking! :-)</p>
+
+<h2>Credits</h2>
+
+<ul>
+<li>OJ Reeves for the HAProxy <a href="http://buffered.io/posts/webmachine-erlydtl-and-riak-part-2/">mini-tutorial</a></li>
+</ul>
+
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Erlang Real Time Server - Part 2 - Aggregation]]></title>
