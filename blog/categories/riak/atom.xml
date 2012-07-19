@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Riak | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/riak/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-19T22:17:26+01:00</updated>
+  <updated>2012-07-19T22:30:42+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -393,7 +393,7 @@ ok
 
 <p>If you execute the client:call_ACR() several times, you should see the request going to the first or the second node. The balance policy is not really a round-robin, because we have another routing layer in RiacCore, which sends the requests to the appropriate Riak partition.</p>
 
-<p>You can run the 3rd node, if you want and here we go - a real-time billing in the cloud :-) Well, we are far, far from it - we need to implement all the Diameter commands and wee  need a backend system to manage our subscribers and tariffs, but at least we just built some foundations for a Diameter-based AAA system.</p>
+<p>You can run the 3rd node and here we go - a real-time billing in the cloud :-) Well, we are far, far from it - we need to implement all the Diameter commands and we  need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Diameter-based AAA system.</p>
 
 <p>Project files are available one GitHub in repository <a href="https://github.com/vascokk/diameter-test">diameter_test</a></p>
 
