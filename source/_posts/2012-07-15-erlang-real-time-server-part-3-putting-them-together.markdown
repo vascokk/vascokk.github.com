@@ -362,7 +362,7 @@ If you execute the client:call\_ACR() several times, you should see the request 
 
 You can now create a release node (_make rel_), deploy the node on several AWS instances and here we go - a real-time billing in the cloud :-) Well, of course,  we are not nearly there - we need to all the rest of the Diameter commands and we need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Riak-based AAA system. 
 
-Project files are available one GitHub in repository [diameter_test](https://github.com/vascokk/diameter-test) Happy hacking! :-)
+Project files are available one GitHub in repository [diameter_test](https://github.com/vascokk/diameter-test). Happy hacking! :-)
 
 
 Credits

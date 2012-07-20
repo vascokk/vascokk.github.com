@@ -4,7 +4,7 @@
   <title><![CDATA[Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-20T18:52:00+01:00</updated>
+  <updated>2012-07-20T18:54:10+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -639,7 +639,7 @@
 
 <p>You can now create a release node (<em>make rel</em>), deploy the node on several AWS instances and here we go - a real-time billing in the cloud :-) Well, of course,  we are not nearly there - we need to all the rest of the Diameter commands and we need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Riak-based AAA system.</p>
 
-<p>Project files are available one GitHub in repository <a href="https://github.com/vascokk/diameter-test">diameter_test</a> Happy hacking! :-)</p>
+<p>Project files are available one GitHub in repository <a href="https://github.com/vascokk/diameter-test">diameter_test</a>. Happy hacking! :-)</p>
 
 <h2>Credits</h2>
 
