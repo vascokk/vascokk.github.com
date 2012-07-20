@@ -10,7 +10,7 @@ published: true
 The need for load-balancing
 -----------------------
 
-As you have probably noted in [Part 2](http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/) we always send Riak commands to one of the nodes. That doesn't seem to be right, so, what about some load balancing? There are at least two ways to solve this:
+As you have probably noticed in [Part 2](http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/) we always send the Riak commands to one and the same node. That doesn't seem to be right, so, what about some load balanced distibution of the commands among the cluster nodes? There are at least two ways to solve this:
 
 - send commands from Diameter Server to Riak cluster in load-balanced fashion, or:
 - couple Diameter server with  RiakCore application in one node and send Diameter messages directly to the RiakCluster in a load-balanced fashion. 
@@ -360,11 +360,9 @@ ok
 
 If you execute the client:call\_ACR() several times, you should see the request going to the first or the second node. The balance policy is not really a round-robin, because we have another routing layer in RiacCore, which sends the requests to the appropriate Riak partition.
 
-You can run the 3rd node and here we go - a real-time billing in the cloud :-) Well, we are far, far from it - we need to implement all the Diameter commands and we  need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Diameter-based AAA system. 
+You can now create a release node (_make rel_), deploy the node on several AWS instances and here we go - a real-time billing in the cloud :-) Well, of course,  we are not nearly there - we need to all the rest of the Diameter commands and we need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Riak-based AAA system. 
 
-Project files are available one GitHub in repository [diameter_test](https://github.com/vascokk/diameter-test)
-
-Happy hacking! :-)
+Project files are available one GitHub in repository [diameter_test](https://github.com/vascokk/diameter-test) Happy hacking! :-)
 
 
 Credits
