@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Riak | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/riak/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-19T22:30:42+01:00</updated>
+  <updated>2012-07-20T18:52:00+01:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -20,7 +20,7 @@
     <id>http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together</id>
     <content type="html"><![CDATA[<h2>The need for load-balancing</h2>
 
-<p>As you have probably noted in <a href="http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Part 2</a> we always send Riak commands to one of the nodes. That doesn't seem to be right, so, what about some load balancing? There are at least two ways to solve this:</p>
+<p>As you have probably noticed in <a href="http://vas.io/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Part 2</a> we always send the Riak commands to one and the same node. That doesn't seem to be right, so, what about some load balanced distibution of the commands among the cluster nodes? There are at least two ways to solve this:</p>
 
 <ul>
 <li>send commands from Diameter Server to Riak cluster in load-balanced fashion, or:</li>
@@ -393,11 +393,9 @@ ok
 
 <p>If you execute the client:call_ACR() several times, you should see the request going to the first or the second node. The balance policy is not really a round-robin, because we have another routing layer in RiacCore, which sends the requests to the appropriate Riak partition.</p>
 
-<p>You can run the 3rd node and here we go - a real-time billing in the cloud :-) Well, we are far, far from it - we need to implement all the Diameter commands and we  need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Diameter-based AAA system.</p>
+<p>You can now create a release node (<em>make rel</em>), deploy the node on several AWS instances and here we go - a real-time billing in the cloud :-) Well, of course,  we are not nearly there - we need to all the rest of the Diameter commands and we need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Riak-based AAA system.</p>
 
-<p>Project files are available one GitHub in repository <a href="https://github.com/vascokk/diameter-test">diameter_test</a></p>
-
-<p>Happy hacking! :-)</p>
+<p>Project files are available one GitHub in repository <a href="https://github.com/vascokk/diameter-test">diameter_test</a> Happy hacking! :-)</p>
 
 <h2>Credits</h2>
 
