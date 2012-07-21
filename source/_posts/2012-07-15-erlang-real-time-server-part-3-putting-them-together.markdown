@@ -360,7 +360,7 @@ ok
 
 If you execute the client:call\_ACR() several times, you should see the request going to the first or the second node. The balance policy is not really a round-robin, because we have another routing layer in RiacCore, which sends the requests to the appropriate Riak partition.
 
-You can now create a release node (_make rel_), deploy the node on several AWS instances and here we go - a real-time billing in the cloud :-) Well, of course,  we are not nearly there - we need to all the rest of the Diameter commands and we need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Riak-based AAA system. 
+You can now create a release node (execute: _make rel_), deploy the node on several AWS instances and here we go - a real-time billing in the cloud :-) Well, of course,  we are not even close to this - we need to implement all the Diameter commands and we need a backend system to manage our subscribers and tariffs, but at least, we just built some foundations for a Riak-based AAA system. 
 
 Project files are available one GitHub in repository [diameter_test](https://github.com/vascokk/diameter-test). Happy hacking! :-)
 
