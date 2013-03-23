@@ -9,7 +9,7 @@
   <meta name="author" content="Vasco Kolarov">
 
   
-  <meta name="description" content="This is a very basic how-to, just to get you started with the topic and demonstrate that it is not so scary as you might think in the beginning. Goal &hellip;">
+  <meta name="description" content="Since I finished the &#8220;Machine Learning&#8221; course on Coursera, I wanted to try it in Erlang, Unfortunately Erlang is notorious with its &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -76,6 +76,172 @@
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/03/23/machine-learning-in-erlang-and-cuda/">Machine Learning in Erlang and CUDA</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-23T18:49:00+00:00" pubdate data-updated="true">Mar 23<span>rd</span>, 2013</time>
+        
+         | <a href="/blog/2013/03/23/machine-learning-in-erlang-and-cuda/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Since I finished the &#8220;Machine Learning&#8221; course on Coursera, I wanted to try it in Erlang, Unfortunately Erlang is notorious with its inability to do pure math calculations. In short - no matrix calculations - no Machine learning. Solution - use C and call it from Erlang. Or better - use GPU (in C) and call it from Erlang. I guess, this approach is no more qualified as &#8220;Erlang&#8221; one, but that is the best we can get. In fact - most of the Python ML libraries, so famous in the ML society, are using NumPy library, which guess what - is written in C (at least - the important part of it).</p>
+
+<p>So, first thing to do was - google &#8220;NumEr&#8221;&#8230;.Almost nothing. I found only two projects - OpenCL bindings for erlang <a href="https://github.com/tonyrog/cl">https://github.com/tonyrog/cl</a> and Kevin Smith&#8217;s <a href="https://github.com/kevsmith/pteracuda">Pteracuda</a>. I liked the Kevin&#8217;s approach, as using the Thrust library underneath would hide the pure C boilerplate CUDA code. Also some algorithms with are one-liners in Thrust.</p>
+
+<p>I forked Pteracuda and added matrix operations (CUBLAS-based), but since it has some parts that I don&#8217;t need (like strings, search, min-max), I decided to create another project and so - the <a href="https://github.com/vascokk/NumEr">NumEr</a> was born :)</p>
+
+<p>Basically, it is a bunch of Erlang NIF functions for operations on vectors and matrices. Both are natively implemented as Thrust host/device vectors and special &#8220;buffer&#8221; classes are used to transfer them from Erlang to CUDA and back.</p>
+
+<p>Here is an example:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">% this is a matrix:</span>
+</span><span class='line'><span class="nv">A</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">4</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">6</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">8</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">.</span><span class="mi">0</span><span class="p">],[</span><span class="mi">5</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">9</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">.</span><span class="mi">0</span><span class="p">]].</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">%this is a vector:</span>
+</span><span class='line'><span class="nv">X</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">.</span><span class="mi">0</span><span class="p">].</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% create a CUDA context and transfer to &quot;buffers&quot;</span>
+</span><span class='line'><span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Ctx</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_nifs</span><span class="p">:</span><span class="n">new_context</span><span class="p">().</span>
+</span><span class='line'><span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Buf_A</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_nifs</span><span class="p">:</span><span class="n">new_matrix_float_buffer</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">,</span> <span class="nv">A</span><span class="p">,</span> <span class="no">?ROW_MAJOR</span><span class="p">).</span>
+</span><span class='line'><span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Buf_X</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_nifs</span><span class="p">:</span><span class="n">new_float_buffer</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">).</span>
+</span><span class='line'><span class="nn">numer_nifs</span><span class="p">:</span><span class="n">write_buffer</span><span class="p">(</span><span class="nv">Buf_X</span><span class="p">,</span> <span class="nv">X</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As you see one of the parameters in the matrix buffer is ?ROW_MAJOR. It is kinda borrowed from Boost, but not yet fully implemented in NumEr. I mean - currently only row major matrices are supported. However, under the hood in the Thrust vectors the numbers are stored in column major format. I chose to do it in this way, because the CUBLAS library is using column major storage, being a derivative of the FORTRAN BLAS library.</p>
+
+<p>The NIF functions are abstracted in separate modules like, numer_blas - for BLAS operations, numer_buffer - for operations on buffers (new, delete, read, write), etc.</p>
+
+<p>Using numer_buffer module, the above example will look like:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'> <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Ctx</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_context</span><span class="p">:</span><span class="n">new</span><span class="p">().</span>
+</span><span class='line'> <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Buf_A</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">new</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">,</span> <span class="n">matrix</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">row_major</span><span class="p">,</span> <span class="nv">A</span><span class="p">).</span>
+</span><span class='line'> <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Buf_X</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">new</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">,</span> <span class="nb">float</span><span class="p">).</span>
+</span><span class='line'> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">write</span><span class="p">(</span><span class="nv">Buf_X</span><span class="p">,</span> <span class="nv">X</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>Now, the more interesting part - calculations with vectors and matrices. Here is the BLAS GEMC example:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">%  GEMV: y &lt;- α op ( A ) x + β y</span>
+</span><span class='line'><span class="nf">gemv_test</span><span class="p">()</span><span class="o">-&gt;</span>
+</span><span class='line'>    <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Ctx</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_context</span><span class="p">:</span><span class="n">new</span><span class="p">(),</span>
+</span><span class='line'>    <span class="nv">A</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">4</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">6</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">8</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">.</span><span class="mi">0</span><span class="p">],[</span><span class="mi">5</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">9</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">.</span><span class="mi">0</span><span class="p">]],</span>
+</span><span class='line'>    <span class="p">_</span><span class="n">m</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="c">%rows A</span>
+</span><span class='line'>    <span class="p">_</span><span class="n">n</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span> <span class="c">%columns A</span>
+</span><span class='line'>    <span class="p">_</span><span class="n">alpha</span> <span class="o">=</span> <span class="mi">1</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span>
+</span><span class='line'>    <span class="p">_</span><span class="n">beta</span> <span class="o">=</span> <span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span>
+</span><span class='line'>    <span class="nv">X</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">.</span><span class="mi">0</span><span class="p">],</span>
+</span><span class='line'>    <span class="nv">Y</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">],</span>
+</span><span class='line'>    <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Buf_A</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">new</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">,</span> <span class="n">matrix</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">row_major</span><span class="p">,</span> <span class="nv">A</span><span class="p">),</span>
+</span><span class='line'>    <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Buf_X</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">new</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+</span><span class='line'>    <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">write</span><span class="p">(</span><span class="nv">Buf_X</span><span class="p">,</span> <span class="nv">X</span><span class="p">),</span>
+</span><span class='line'>    <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Buf_Y</span><span class="p">}</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">new</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">,</span> <span class="nb">float</span><span class="p">),</span>
+</span><span class='line'>    <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">write</span><span class="p">(</span><span class="nv">Buf_Y</span><span class="p">,</span> <span class="nv">Y</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">ok</span> <span class="o">=</span> <span class="nn">numer_blas</span><span class="p">:</span><span class="n">gemv</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">,</span> <span class="n">no_transpose</span> <span class="p">,</span> <span class="p">_</span><span class="n">m</span><span class="p">,</span> <span class="p">_</span><span class="n">n</span><span class="p">,</span> <span class="p">_</span><span class="n">alpha</span><span class="p">,</span> <span class="nv">Buf_A</span><span class="p">,</span> <span class="nv">Buf_X</span><span class="p">,</span> <span class="p">_</span><span class="n">beta</span><span class="p">,</span> <span class="nv">Buf_Y</span><span class="p">),</span>
+</span><span class='line'>    <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="p">[</span><span class="mi">60</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">75</span><span class="p">.</span><span class="mi">0</span><span class="p">]}</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">read</span><span class="p">(</span><span class="nv">Buf_Y</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">ok</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">destroy</span><span class="p">(</span><span class="nv">Buf_A</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">ok</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">destroy</span><span class="p">(</span><span class="nv">Buf_X</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">ok</span> <span class="o">=</span> <span class="nn">numer_buffer</span><span class="p">:</span><span class="n">destroy</span><span class="p">(</span><span class="nv">Buf_Y</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">ok</span> <span class="o">=</span> <span class="nn">numer_context</span><span class="p">:</span><span class="n">destroy</span><span class="p">(</span><span class="nv">Ctx</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As for the ML part of the whole exercise - there is an implementation of the Logistic Regression (without regularization) algorithm. Take a look at the numer_logreg.erl module.</p>
+
+<p>The numer_ml.erl module contains an all-native implementation of Logistic Regression and numer_logreg - implementation using buffers and NIFs.</p>
+
+<p>Since using buffer operation can make the implementation awkward, there is also a helper module - numer_helpers.erl, wich can be used for prototyping the algorithms. WARNING - it is extremely slow and suitable ONLY for prototyping. Here is how you can use it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">gemv_2_test</span><span class="p">()</span><span class="o">-&gt;</span>
+</span><span class='line'>    <span class="nv">A</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">4</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">6</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">8</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">.</span><span class="mi">0</span><span class="p">],[</span><span class="mi">5</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">9</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">.</span><span class="mi">0</span><span class="p">]],</span>
+</span><span class='line'>    <span class="p">_</span><span class="n">alpha</span> <span class="o">=</span> <span class="mi">1</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span>
+</span><span class='line'>    <span class="p">_</span><span class="n">beta</span> <span class="o">=</span> <span class="mi">0</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span>
+</span><span class='line'>    <span class="nv">X</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">.</span><span class="mi">0</span><span class="p">],</span>
+</span><span class='line'>    <span class="nv">Res</span> <span class="o">=</span> <span class="nn">numer_helpers</span><span class="p">:</span><span class="n">gemv</span><span class="p">(</span><span class="n">no_transpose</span> <span class="p">,</span> <span class="p">_</span><span class="n">alpha</span><span class="p">,</span> <span class="nv">A</span><span class="p">,</span> <span class="nv">X</span><span class="p">,</span> <span class="p">_</span><span class="n">beta</span><span class="p">,</span> <span class="p">[]),</span>
+</span><span class='line'>    <span class="no">?assertEqual</span><span class="p">([</span><span class="mi">60</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">75</span><span class="p">.</span><span class="mi">0</span><span class="p">],</span> <span class="nv">Res</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>It is much more readable, but at the &#8220;training&#8221; stage (with hundreds of iterations) it will be unusable.</p>
+
+<p>The project is still a work in progress and needs a lot of polishing. So, if anyone is willing to give a hand I&#8217;ll be more than happy. Any suggestions to improve the framework are also very welcome.</p>
+
+<p>That&#8217;s all folk! Happy hacking! :-)</p>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -2339,6 +2505,10 @@ What we need to do is to put the start() snippet from the above in the init() fu
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2013/03/23/machine-learning-in-erlang-and-cuda/">Machine Learning in Erlang and CUDA</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/">Erlang: How to create and compile module in run-time</a>
       </li>
     
@@ -2352,10 +2522,6 @@ What we need to do is to put the start() snippet from the above in the init() fu
     
       <li class="post">
         <a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang Real Time Server - Part 1 - Diameter Server</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2012/05/11/erlang-real-time-server-introduction/">Erlang Real Time Server - Introduction</a>
       </li>
     
   </ul>
