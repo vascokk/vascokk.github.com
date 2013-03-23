@@ -4,7 +4,7 @@
   <title><![CDATA[Category: howto | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/howto/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-23T16:44:09+00:00</updated>
+  <updated>2013-03-23T16:47:33+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -93,7 +93,7 @@ Export = erl_syntax:attribute(erl_syntax:atom(export),[erl_syntax:list([erl_synt
 ExportForm = erl_syntax:revert(Export).
 </code></p>
 
-<p>Scary at the first sight, isn't it? In fact, it is quite straightforward:</p>
+<p>Scary at a first sight, isn't it? In fact, it is quite straightforward:</p>
 
 <p>First we call the function attribute(), i.e. we are going to create a module attribute. The attribute() function has two parameters - name of the attribute (which is an atom) and a list of arguments. In this case the list of arguments has only one element, which is again a list, containing arity qualifiers ( name/arity) of the exported functions. So we have attribute(atom, [Arguments]), where Arguments is "list([arity_qualifieris])". The arity qualifier is an atom and an integer.</p>
 
