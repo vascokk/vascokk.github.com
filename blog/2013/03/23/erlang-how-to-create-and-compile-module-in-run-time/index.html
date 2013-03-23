@@ -1,0 +1,486 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Erlang: How to create and compile module in run-time - Reinventing The Wheel</title>
+  <meta name="author" content="Vasco Kolarov">
+
+  
+  <meta name="description" content="This is a very basic how-to, just to get you started with the topic and demonstrate that it is not so scary as you might think in the beginning. Goal &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://vascokk.github.com/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Reinventing The Wheel" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-2366459']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Reinventing The Wheel</a></h1>
+  
+    <h2>because sometimes it's fun</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:vascokk.github.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Erlang: How to Create and Compile Module in Run-time</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-23T15:40:00+00:00" pubdate data-updated="true">Mar 23<span>rd</span>, 2013</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>This is a very basic how-to, just to get you started with the topic and demonstrate that it is not so scary as you might think in the beginning.</p>
+
+<p>Goal: Define and compile an Erlang module in run-time.</p>
+
+<p>Let say we want to create the following module dynamically:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="p">-</span><span class="ni">module</span><span class="p">(</span><span class="n">div_test</span><span class="p">).</span>
+</span><span class='line'><span class="p">-</span><span class="ni">export</span><span class="p">([</span><span class="n">divide</span><span class="o">/</span><span class="mi">2</span><span class="p">]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">divide</span><span class="p">(</span><span class="nv">A</span><span class="p">,</span><span class="nv">B</span><span class="p">)</span> <span class="k">when</span> <span class="nv">B</span> <span class="o">=/=</span> <span class="mi">0</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="nv">A</span><span class="o">/</span><span class="nv">B</span><span class="p">.</span>
+</span><span class='line'><span class="nf">divide</span><span class="p">(_,_)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">error</span><span class="p">,</span> <span class="n">division_by_zero</span><span class="p">}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>This is really simple module, just to illustrate the approach.</p>
+
+<p>We are going to use the erl_syntax module, which provides facilities to create Erlang source code in form of Abstract Syntax Trees.
+Let&#8217;s first take a look at our simple module. Here we have:</p>
+
+<ol>
+<li>Module declaration where the name of the module is an Erlang atom (div_test).</li>
+<li>Export clause with a list of arity qualifiers. In our case - only one qualifier, which contains an atom (function name) and an integer (arity)</li>
+<li>Function &#8220;divide&#8221; (again the name is an atom) and two function clauses
+3.1. First clause contains:
+
+<ul>
+<li>two variables A and B</li>
+<li>a guard, which is an infix operation (&#8220;=/=&#8221;) between the variable B and the integer 0.</li>
+<li>a body, which is an infix operation (&#8220;/&#8221;) between two variables A and B
+3.2. Second clause contains:</li>
+<li>two anonymous variables (&#8221;<em>,</em>&#8221;)</li>
+<li>a body, which is a tuple of two atoms - &#8220;error&#8221; and &#8220;division_by_zero&#8221;</li>
+</ul>
+</li>
+</ol>
+
+
+<p>Now, we are going to create each of the above, using the functions provided by erl_syntax module:</p>
+
+<ol>
+<li>Module:</li>
+</ol>
+
+
+<p>In fact the &#8220;-module(div_test)&#8221; is a module attribute with argument - the name of the module:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nv">Module</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">attribute</span><span class="p">(</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">module</span><span class="p">),[</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">div_test</span><span class="p">)]).</span>
+</span><span class='line'><span class="nv">ModForm</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">revert</span><span class="p">(</span><span class="nv">Module</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To make the Module AST compatible with the erl_parse trees, which are used by the &#8220;compile&#8221; module (i.e. make a &#8220;Form&#8221; out of the AST), we have to invoke revert().</p>
+
+<ol>
+<li>Export attribute:</li>
+</ol>
+
+
+<p>It is a bit tricky&#8230; I would happily use just the line: ExportForm = {attribute,2,export,[{divide,2}]}, but for the sake of completeness, let&#8217;s go deeper:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nv">Export</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">attribute</span><span class="p">(</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">export</span><span class="p">),[</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">list</span><span class="p">([</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">arity_qualifier</span><span class="p">(</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">divide</span><span class="p">),</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">integer</span><span class="p">(</span><span class="mi">2</span><span class="p">))])]).</span>
+</span><span class='line'><span class="nv">ExportForm</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">revert</span><span class="p">(</span><span class="nv">Export</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Scary at the first sight, isn&#8217;t it? In fact, it is quite straightforward:</p>
+
+<p>First we call the function attribute(), i.e. we are going to create a module attribute. The attribute() function has two parameters - name of the attribute (which is an atom) and a list of arguments. In this case the list of arguments has only one element, which is again a list, containing arity qualifiers ( name/arity) of the exported functions. So we have attribute(atom, [Arguments]), where Arguments is &#8220;list([arity_qualifieris])&#8221;. The arity qualifier is an atom and an integer.</p>
+
+<ol>
+<li>Function</li>
+</ol>
+
+
+<p>If you grapsed the above, the function definition will be quite easy to understand:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">% define the input variables</span>
+</span><span class='line'><span class="nv">Var1</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">variable</span><span class="p">(</span><span class="s">&quot;A&quot;</span><span class="p">).</span>
+</span><span class='line'><span class="nv">Var2</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">variable</span><span class="p">(</span><span class="s">&quot;B&quot;</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the Guard</span>
+</span><span class='line'><span class="nv">Guard1</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">infix_expr</span><span class="p">(</span><span class="nv">Var1</span><span class="p">,</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">operator</span><span class="p">(</span><span class="s">&quot;=/=&quot;</span><span class="p">),</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">integer</span><span class="p">(</span><span class="mi">0</span><span class="p">)).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the function body</span>
+</span><span class='line'><span class="nv">Body1</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">infix_expr</span><span class="p">(</span><span class="nv">Var1</span><span class="p">,</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">operator</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">),</span> <span class="nv">Var2</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the first clause</span>
+</span><span class='line'><span class="nv">Clause1</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">clause</span><span class="p">([</span><span class="nv">Var1</span><span class="p">,</span><span class="nv">Var2</span><span class="p">],[</span><span class="nv">Guard1</span><span class="p">],[</span><span class="nv">Body1</span><span class="p">]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the anonymous variable</span>
+</span><span class='line'><span class="nv">Var3</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">variable</span><span class="p">(</span><span class="s">&quot;_&quot;</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the body of the second clause</span>
+</span><span class='line'><span class="nv">Body2</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">tuple</span><span class="p">([</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">error</span><span class="p">),</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">divsion_by_zero</span><span class="p">)]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the second clause</span>
+</span><span class='line'><span class="nv">Clause2</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">clause</span><span class="p">([</span><span class="nv">Var3</span><span class="p">,</span> <span class="nv">Var3</span><span class="p">],[],[</span><span class="nv">Body2</span><span class="p">]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the function</span>
+</span><span class='line'><span class="nv">Function</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">function</span><span class="p">(</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">divide</span><span class="p">),[</span><span class="nv">Clause1</span><span class="p">,</span><span class="nv">Clause2</span><span class="p">]).</span>
+</span><span class='line'><span class="nv">FunctionForm</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">revert</span><span class="p">(</span><span class="nv">Function</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now we just have to compile the module, load the binary and test:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="mi">15</span><span class="o">&gt;</span> <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Mod</span><span class="p">,</span> <span class="nv">Bin1</span><span class="p">}</span> <span class="o">=</span> <span class="nn">compile</span><span class="p">:</span><span class="n">forms</span><span class="p">([</span><span class="nv">ModForm</span><span class="p">,</span><span class="nv">ExportForm</span><span class="p">,</span> <span class="nv">FunctionForm</span><span class="p">]).</span>
+</span><span class='line'><span class="p">{</span><span class="n">ok</span><span class="p">,</span><span class="n">div_test</span><span class="p">,</span>
+</span><span class='line'>    <span class="o">&lt;&lt;</span><span class="mi">70</span><span class="p">,</span><span class="mi">79</span><span class="p">,</span><span class="mi">82</span><span class="p">,</span><span class="mi">49</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">16</span><span class="p">,</span><span class="mi">66</span><span class="p">,</span><span class="mi">69</span><span class="p">,</span><span class="mi">65</span><span class="p">,</span><span class="mi">77</span><span class="p">,</span><span class="mi">65</span><span class="p">,</span><span class="mi">116</span><span class="p">,</span><span class="mi">111</span><span class="p">,</span><span class="mi">109</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+</span><span class='line'>      <span class="mi">55</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">100</span><span class="p">,...</span><span class="o">&gt;&gt;</span><span class="p">}</span>
+</span><span class='line'><span class="mi">16</span><span class="o">&gt;</span> <span class="nn">code</span><span class="p">:</span><span class="n">load_binary</span><span class="p">(</span><span class="nv">Mod</span><span class="p">,</span> <span class="p">[],</span> <span class="nv">Bin1</span><span class="p">).</span>
+</span><span class='line'><span class="p">{</span><span class="n">module</span><span class="p">,</span><span class="n">div_test</span><span class="p">}</span>
+</span><span class='line'><span class="mi">17</span><span class="o">&gt;</span> <span class="nn">div_test</span><span class="p">:</span><span class="n">divide</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">).</span>
+</span><span class='line'><span class="mi">2</span><span class="p">.</span><span class="mi">0</span>
+</span><span class='line'><span class="mi">18</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>That&#8217;s all folks! Happy hacking! :-)</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Vasco Kolarov</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-23T15:40:00+00:00" pubdate data-updated="true">Mar 23<span>rd</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/erlang/'>Erlang</a>, <a class='category' href='/blog/categories/compile/'>compile</a>, <a class='category' href='/blog/categories/dynamic/'>dynamic</a>, <a class='category' href='/blog/categories/howto/'>howto</a>, <a class='category' href='/blog/categories/modules/'>modules</a>, <a class='category' href='/blog/categories/runtime/'>runtime</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://vascokk.github.com/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/" data-via="vasco_kk" data-counturl="http://vascokk.github.com/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/" >Tweet</a>
+  
+  
+  <div class="g-plusone" data-size="medium"></div>
+  
+  
+    <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together/" title="Previous Post: Erlang Real Time Server - Part 3 - Putting Parts Together">&laquo; Erlang Real Time Server - Part 3 - Putting Parts Together</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/">Erlang: How to create and compile module in run-time</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together/">Erlang Real Time Server - Part 3 - Putting Parts Together</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/">Erlang Real Time Server - Part 2 - Aggregation</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">Erlang Real Time Server - Part 1 - Diameter Server</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/05/11/erlang-real-time-server-introduction/">Erlang Real Time Server - Introduction</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/vascokk">@vascokk</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'vascokk',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("vasco_kk", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/vasco_kk" class="twitter-follow-button" data-show-count="false">Follow @vasco_kk</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - Vasco Kolarov -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'vasio';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://vascokk.github.com/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/';
+        var disqus_url = 'http://vascokk.github.com/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Erlang | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/erlang/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2012-07-21T14:13:57+01:00</updated>
+  <updated>2013-03-23T16:37:40+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -12,6 +12,145 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Erlang: How to create and compile module in run-time]]></title>
+    <link href="http://vascokk.github.com/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/"/>
+    <updated>2013-03-23T15:40:00+00:00</updated>
+    <id>http://vascokk.github.com/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time</id>
+    <content type="html"><![CDATA[<p>This is a very basic how-to, just to get you started with the topic and demonstrate that it is not so scary as you might think in the beginning.</p>
+
+<p>Goal: Define and compile an Erlang module in run-time.</p>
+
+<p>Let say we want to create the following module dynamically:</p>
+
+<p>``` erlang
+-module(div_test).
+-export([divide/2]).</p>
+
+<p>divide(A,B) when B =/= 0 -></p>
+
+<pre><code>A/B.
+</code></pre>
+
+<p>divide(<em>,</em>) -></p>
+
+<pre><code>{error, division_by_zero}.
+</code></pre>
+
+<p>```</p>
+
+<p>This is really simple module, just to illustrate the approach.</p>
+
+<p>We are going to use the erl_syntax module, which provides facilities to create Erlang source code in form of Abstract Syntax Trees.
+Let's first take a look at our simple module. Here we have:</p>
+
+<ol>
+<li>Module declaration where the name of the module is an Erlang atom (div_test).</li>
+<li>Export clause with a list of arity qualifiers. In our case - only one qualifier, which contains an atom (function name) and an integer (arity)</li>
+<li>Function "divide" (again the name is an atom) and two function clauses
+3.1. First clause contains:
+
+<ul>
+<li>two variables A and B</li>
+<li>a guard, which is an infix operation ("=/=") between the variable B and the integer 0.</li>
+<li>a body, which is an infix operation ("/") between two variables A and B
+3.2. Second clause contains:</li>
+<li>two anonymous variables ("<em>,</em>")</li>
+<li>a body, which is a tuple of two atoms - "error" and "division_by_zero"</li>
+</ul>
+</li>
+</ol>
+
+
+<p>Now, we are going to create each of the above, using the functions provided by erl_syntax module:</p>
+
+<ol>
+<li>Module:</li>
+</ol>
+
+
+<p>In fact the "-module(div_test)" is a module attribute with argument - the name of the module:</p>
+
+<p><code>erlang
+Module = erl_syntax:attribute(erl_syntax:atom(module),[erl_syntax:atom(div_test)]).
+ModForm =  erl_syntax:revert(Module).
+</code></p>
+
+<p>To make the Module AST compatible with the erl_parse trees, which are used by the "compile" module (i.e. make a "Form" out of the AST), we have to invoke revert().</p>
+
+<ol>
+<li>Export attribute:</li>
+</ol>
+
+
+<p>It is a bit tricky... I would happily use just the line: ExportForm = {attribute,2,export,[{divide,2}]}, but for the sake of completeness, let's go deeper:</p>
+
+<p><code>erlang
+Export = erl_syntax:attribute(erl_syntax:atom(export),[erl_syntax:list([erl_syntax:arity_qualifier(erl_syntax:atom(divide),erl_syntax:integer(2))])]).
+ExportForm = erl_syntax:revert(Export).
+</code></p>
+
+<p>Scary at the first sight, isn't it? In fact, it is quite straightforward:</p>
+
+<p>First we call the function attribute(), i.e. we are going to create a module attribute. The attribute() function has two parameters - name of the attribute (which is an atom) and a list of arguments. In this case the list of arguments has only one element, which is again a list, containing arity qualifiers ( name/arity) of the exported functions. So we have attribute(atom, [Arguments]), where Arguments is "list([arity_qualifieris])". The arity qualifier is an atom and an integer.</p>
+
+<ol>
+<li>Function</li>
+</ol>
+
+
+<p>If you grapsed the above, the function definition will be quite easy to understand:</p>
+
+<p>``` erlang
+% define the input variables
+Var1 = erl_syntax:variable("A").
+Var2 = erl_syntax:variable("B").</p>
+
+<p>% define the Guard
+Guard1 = erl_syntax:infix_expr(Var1, erl_syntax:operator("=/="), erl_syntax:integer(0)).</p>
+
+<p>% define the function body
+Body1 = erl_syntax:infix_expr(Var1, erl_syntax:operator("/"), Var2).</p>
+
+<p>% define the first clause
+Clause1 =  erl_syntax:clause([Var1,Var2],[Guard1],[Body1]).</p>
+
+<p>% define the anonymous variable
+Var3 = erl_syntax:variable("_").</p>
+
+<p>% define the body of the second clause
+Body2 =  erl_syntax:tuple([erl_syntax:atom(error),erl_syntax:atom(divsion_by_zero)]).</p>
+
+<p>% define the second clause
+Clause2 =  erl_syntax:clause([Var3, Var3],[],[Body2]).</p>
+
+<p>% define the function
+Function =  erl_syntax:function(erl_syntax:atom(divide),[Clause1,Clause2]).
+FunctionForm = erl_syntax:revert(Function).
+```</p>
+
+<p>Now we just have to compile the module, load the binary and test:</p>
+
+<p>``` erlang
+15> {ok, Mod, Bin1} = compile:forms([ModForm,ExportForm, FunctionForm]).
+{ok,div_test,</p>
+
+<pre><code>&lt;&lt;70,79,82,49,0,0,2,16,66,69,65,77,65,116,111,109,0,0,0,
+  55,0,0,0,5,8,100,...&gt;&gt;}
+</code></pre>
+
+<p>16> code:load_binary(Mod, [], Bin1).
+{module,div_test}
+17> div_test:divide(10,5).
+2.0
+18></p>
+
+<p>```</p>
+
+<p>That's all folks! Happy hacking! :-)</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Erlang Real Time Server - Part 3 - Putting Parts Together]]></title>
@@ -189,46 +328,7 @@ Writing ./vars/dev3.config</p>
 <p>For the <em>app.config</em> we need to configure the TCP port on which diaserver will listen.</p>
 
 <p><div><script src='https://gist.github.com/3146816.js?file='></script>
-<noscript><pre><code>%% -*- erlang -*-
-[
- %% Riak Core config
- {riak_core, [
-              %% Default location of ringstate
-              {ring_state_dir, &quot;{{ring_state_dir}}&quot;},
-
-              %% http is a list of IP addresses and TCP ports that the Riak
-              %% HTTP interface will bind.
-              {http, [ {&quot;{{web_ip}}&quot;, {{web_port}} } ]},
-
-              %% https is a list of IP addresses and TCP ports that the Riak
-              %% HTTPS interface will bind.
-              %{https, [{ &quot;{{web_ip}}&quot;, {{web_port}} }]},
-
-              %% default cert and key locations for https can be overridden
-              %% with the ssl config variable
-              %{ssl, [
-              %       {certfile, &quot;etc/cert.pem&quot;},
-              %       {keyfile, &quot;etc/key.pem&quot;}
-              %      ]},
-
-              %% riak_handoff_port is the TCP port that Riak uses for
-              %% intra-cluster data handoff.
-              {handoff_port, {{handoff_port}} }
-             ]},
-
- %% SASL config
- {sasl, [
-         {sasl_error_logger, {file, &quot;log/sasl-error.log&quot;}},
-         {errlog_type, error},
-         {error_logger_mf_dir, &quot;log/sasl&quot;},      % Log directory
-         {error_logger_mf_maxbytes, 10485760},   % 10 MB max file size
-         {error_logger_mf_maxfiles, 5}           % 5 files max
-        ]},
- {diaserver, [
-                {diameter_port, {{diameter_port}} }
-            ]}
-
-].</code></pre></noscript></div>
+<noscript><pre><code></code></pre></noscript></div>
 </p>
 
 <p>I only added the last <em>diaserver</em> tuple. As you see the  is a template parameter. It will be substituted with the value specific for each "dev" node. For this purpose we have 3 "dev" configuration files in the <em>dev</em> directory. Here is the content of the first one:</p>
