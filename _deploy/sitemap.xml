@@ -2,36 +2,42 @@
 <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
     <url>
         <loc>http://vascokk.github.com/blog/2012/05/10/the-first-one/</loc>
-        <lastmod>2012-07-08T15:35:45+01:00</lastmod>
+        <lastmod>2013-03-23T15:36:29+00:00</lastmod>
     </url>
     <url>
         <loc>http://vascokk.github.com/blog/2012/05/11/erlang-real-time-server-introduction/</loc>
-        <lastmod>2012-07-08T15:35:45+01:00</lastmod>
+        <lastmod>2013-03-23T15:36:29+00:00</lastmod>
     </url>
     <url>
         <loc>
             http://vascokk.github.com/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/
         </loc>
-        <lastmod>2012-07-08T15:35:45+01:00</lastmod>
+        <lastmod>2013-03-23T15:36:29+00:00</lastmod>
     </url>
     <url>
         <loc>
             http://vascokk.github.com/blog/2012/06/06/erlang-real-time-server-part-2-aggregation/
         </loc>
-        <lastmod>2012-07-08T15:53:44+01:00</lastmod>
+        <lastmod>2013-03-23T15:36:29+00:00</lastmod>
     </url>
     <url>
         <loc>
             http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together/
         </loc>
-        <lastmod>2012-07-21T14:13:40+01:00</lastmod>
+        <lastmod>2013-03-23T15:36:29+00:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://vascokk.github.com/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/
+        </loc>
+        <lastmod>2013-03-23T16:37:02+00:00</lastmod>
     </url>
     <url>
         <loc>http://vascokk.github.com/blog/archives/</loc>
-        <lastmod>2012-07-21T14:13:40+01:00</lastmod>
+        <lastmod>2013-03-23T16:37:02+00:00</lastmod>
     </url>
     <url>
         <loc>http://vascokk.github.com/</loc>
-        <lastmod>2012-07-21T14:13:40+01:00</lastmod>
+        <lastmod>2013-03-23T16:37:02+00:00</lastmod>
     </url>
 </urlset>

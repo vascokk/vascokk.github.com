@@ -9,7 +9,7 @@
   <meta name="author" content="Vasco Kolarov">
 
   
-  <meta name="description" content="The need for load-balancing As you have probably noticed in Part 2 we always send the Riak commands to one and the same node. That doesn&#8217;t seem &hellip;">
+  <meta name="description" content="This is a very basic how-to, just to get you started with the topic and demonstrate that it is not so scary as you might think in the beginning. Goal &hellip;">
   
 
   <!-- http://t.co/dKP3o1e -->
@@ -76,6 +76,211 @@
     <div id="content">
       <div class="blog-index">
   
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/">Erlang: How to Create and Compile Module in Run-time</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-03-23T15:40:00+00:00" pubdate data-updated="true">Mar 23<span>rd</span>, 2013</time>
+        
+         | <a href="/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>This is a very basic how-to, just to get you started with the topic and demonstrate that it is not so scary as you might think in the beginning.</p>
+
+<p>Goal: Define and compile an Erlang module in run-time.</p>
+
+<p>Let say we want to create the following module dynamically:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="p">-</span><span class="ni">module</span><span class="p">(</span><span class="n">div_test</span><span class="p">).</span>
+</span><span class='line'><span class="p">-</span><span class="ni">export</span><span class="p">([</span><span class="n">divide</span><span class="o">/</span><span class="mi">2</span><span class="p">]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="nf">divide</span><span class="p">(</span><span class="nv">A</span><span class="p">,</span><span class="nv">B</span><span class="p">)</span> <span class="k">when</span> <span class="nv">B</span> <span class="o">=/=</span> <span class="mi">0</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="nv">A</span><span class="o">/</span><span class="nv">B</span><span class="p">.</span>
+</span><span class='line'><span class="nf">divide</span><span class="p">(_,_)</span> <span class="o">-&gt;</span>
+</span><span class='line'>  <span class="p">{</span><span class="n">error</span><span class="p">,</span> <span class="n">division_by_zero</span><span class="p">}.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>This is really simple module, just to illustrate the approach.</p>
+
+<p>We are going to use the erl_syntax module, which provides facilities to create Erlang source code in form of Abstract Syntax Trees.
+Let&#8217;s first take a look at our simple module. Here we have:</p>
+
+<ol>
+<li>Module declaration where the name of the module is an Erlang atom (div_test).</li>
+<li>Export clause with a list of arity qualifiers. In our case - only one qualifier, which contains an atom (function name) and an integer (arity)</li>
+<li>Function &#8220;divide&#8221; (again the name is an atom) and two function clauses
+3.1. First clause contains:
+
+<ul>
+<li>two variables A and B</li>
+<li>a guard, which is an infix operation (&#8220;=/=&#8221;) between the variable B and the integer 0.</li>
+<li>a body, which is an infix operation (&#8220;/&#8221;) between two variables A and B
+3.2. Second clause contains:</li>
+<li>two anonymous variables (&#8221;<em>,</em>&#8221;)</li>
+<li>a body, which is a tuple of two atoms - &#8220;error&#8221; and &#8220;division_by_zero&#8221;</li>
+</ul>
+</li>
+</ol>
+
+
+<p>Now, we are going to create each of the above, using the functions provided by erl_syntax module:</p>
+
+<ol>
+<li>Module:</li>
+</ol>
+
+
+<p>In fact the &#8220;-module(div_test)&#8221; is a module attribute with argument - the name of the module:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nv">Module</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">attribute</span><span class="p">(</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">module</span><span class="p">),[</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">div_test</span><span class="p">)]).</span>
+</span><span class='line'><span class="nv">ModForm</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">revert</span><span class="p">(</span><span class="nv">Module</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To make the Module AST compatible with the erl_parse trees, which are used by the &#8220;compile&#8221; module (i.e. make a &#8220;Form&#8221; out of the AST), we have to invoke revert().</p>
+
+<ol>
+<li>Export attribute:</li>
+</ol>
+
+
+<p>It is a bit tricky&#8230; I would happily use just the line: ExportForm = {attribute,2,export,[{divide,2}]}, but for the sake of completeness, let&#8217;s go deeper:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nv">Export</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">attribute</span><span class="p">(</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">export</span><span class="p">),[</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">list</span><span class="p">([</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">arity_qualifier</span><span class="p">(</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">divide</span><span class="p">),</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">integer</span><span class="p">(</span><span class="mi">2</span><span class="p">))])]).</span>
+</span><span class='line'><span class="nv">ExportForm</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">revert</span><span class="p">(</span><span class="nv">Export</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Scary at the first sight, isn&#8217;t it? In fact, it is quite straightforward:</p>
+
+<p>First we call the function attribute(), i.e. we are going to create a module attribute. The attribute() function has two parameters - name of the attribute (which is an atom) and a list of arguments. In this case the list of arguments has only one element, which is again a list, containing arity qualifiers ( name/arity) of the exported functions. So we have attribute(atom, [Arguments]), where Arguments is &#8220;list([arity_qualifieris])&#8221;. The arity qualifier is an atom and an integer.</p>
+
+<ol>
+<li>Function</li>
+</ol>
+
+
+<p>If you grapsed the above, the function definition will be quite easy to understand:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">% define the input variables</span>
+</span><span class='line'><span class="nv">Var1</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">variable</span><span class="p">(</span><span class="s">&quot;A&quot;</span><span class="p">).</span>
+</span><span class='line'><span class="nv">Var2</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">variable</span><span class="p">(</span><span class="s">&quot;B&quot;</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the Guard</span>
+</span><span class='line'><span class="nv">Guard1</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">infix_expr</span><span class="p">(</span><span class="nv">Var1</span><span class="p">,</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">operator</span><span class="p">(</span><span class="s">&quot;=/=&quot;</span><span class="p">),</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">integer</span><span class="p">(</span><span class="mi">0</span><span class="p">)).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the function body</span>
+</span><span class='line'><span class="nv">Body1</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">infix_expr</span><span class="p">(</span><span class="nv">Var1</span><span class="p">,</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">operator</span><span class="p">(</span><span class="s">&quot;/&quot;</span><span class="p">),</span> <span class="nv">Var2</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the first clause</span>
+</span><span class='line'><span class="nv">Clause1</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">clause</span><span class="p">([</span><span class="nv">Var1</span><span class="p">,</span><span class="nv">Var2</span><span class="p">],[</span><span class="nv">Guard1</span><span class="p">],[</span><span class="nv">Body1</span><span class="p">]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the anonymous variable</span>
+</span><span class='line'><span class="nv">Var3</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">variable</span><span class="p">(</span><span class="s">&quot;_&quot;</span><span class="p">).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the body of the second clause</span>
+</span><span class='line'><span class="nv">Body2</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">tuple</span><span class="p">([</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">error</span><span class="p">),</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">divsion_by_zero</span><span class="p">)]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the second clause</span>
+</span><span class='line'><span class="nv">Clause2</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">clause</span><span class="p">([</span><span class="nv">Var3</span><span class="p">,</span> <span class="nv">Var3</span><span class="p">],[],[</span><span class="nv">Body2</span><span class="p">]).</span>
+</span><span class='line'>
+</span><span class='line'><span class="c">% define the function</span>
+</span><span class='line'><span class="nv">Function</span> <span class="o">=</span>  <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">function</span><span class="p">(</span><span class="nn">erl_syntax</span><span class="p">:</span><span class="n">atom</span><span class="p">(</span><span class="n">divide</span><span class="p">),[</span><span class="nv">Clause1</span><span class="p">,</span><span class="nv">Clause2</span><span class="p">]).</span>
+</span><span class='line'><span class="nv">FunctionForm</span> <span class="o">=</span> <span class="nn">erl_syntax</span><span class="p">:</span><span class="n">revert</span><span class="p">(</span><span class="nv">Function</span><span class="p">).</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now we just have to compile the module, load the binary and test:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="mi">15</span><span class="o">&gt;</span> <span class="p">{</span><span class="n">ok</span><span class="p">,</span> <span class="nv">Mod</span><span class="p">,</span> <span class="nv">Bin1</span><span class="p">}</span> <span class="o">=</span> <span class="nn">compile</span><span class="p">:</span><span class="n">forms</span><span class="p">([</span><span class="nv">ModForm</span><span class="p">,</span><span class="nv">ExportForm</span><span class="p">,</span> <span class="nv">FunctionForm</span><span class="p">]).</span>
+</span><span class='line'><span class="p">{</span><span class="n">ok</span><span class="p">,</span><span class="n">div_test</span><span class="p">,</span>
+</span><span class='line'>    <span class="o">&lt;&lt;</span><span class="mi">70</span><span class="p">,</span><span class="mi">79</span><span class="p">,</span><span class="mi">82</span><span class="p">,</span><span class="mi">49</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">16</span><span class="p">,</span><span class="mi">66</span><span class="p">,</span><span class="mi">69</span><span class="p">,</span><span class="mi">65</span><span class="p">,</span><span class="mi">77</span><span class="p">,</span><span class="mi">65</span><span class="p">,</span><span class="mi">116</span><span class="p">,</span><span class="mi">111</span><span class="p">,</span><span class="mi">109</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span>
+</span><span class='line'>      <span class="mi">55</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">8</span><span class="p">,</span><span class="mi">100</span><span class="p">,...</span><span class="o">&gt;&gt;</span><span class="p">}</span>
+</span><span class='line'><span class="mi">16</span><span class="o">&gt;</span> <span class="nn">code</span><span class="p">:</span><span class="n">load_binary</span><span class="p">(</span><span class="nv">Mod</span><span class="p">,</span> <span class="p">[],</span> <span class="nv">Bin1</span><span class="p">).</span>
+</span><span class='line'><span class="p">{</span><span class="n">module</span><span class="p">,</span><span class="n">div_test</span><span class="p">}</span>
+</span><span class='line'><span class="mi">17</span><span class="o">&gt;</span> <span class="nn">div_test</span><span class="p">:</span><span class="n">divide</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">5</span><span class="p">).</span>
+</span><span class='line'><span class="mi">2</span><span class="p">.</span><span class="mi">0</span>
+</span><span class='line'><span class="mi">18</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>That&#8217;s all folks! Happy hacking! :-)</p>
+</div>
+  
+  
+
+
+    </article>
   
   
     <article>
@@ -360,46 +565,7 @@
 <p>For the <em>app.config</em> we need to configure the TCP port on which diaserver will listen.</p>
 
 <div><script src='https://gist.github.com/3146816.js?file='></script>
-<noscript><pre><code>%% -*- erlang -*-
-[
- %% Riak Core config
- {riak_core, [
-              %% Default location of ringstate
-              {ring_state_dir, &quot;{{ring_state_dir}}&quot;},
-
-              %% http is a list of IP addresses and TCP ports that the Riak
-              %% HTTP interface will bind.
-              {http, [ {&quot;{{web_ip}}&quot;, {{web_port}} } ]},
-
-              %% https is a list of IP addresses and TCP ports that the Riak
-              %% HTTPS interface will bind.
-              %{https, [{ &quot;{{web_ip}}&quot;, {{web_port}} }]},
-
-              %% default cert and key locations for https can be overridden
-              %% with the ssl config variable
-              %{ssl, [
-              %       {certfile, &quot;etc/cert.pem&quot;},
-              %       {keyfile, &quot;etc/key.pem&quot;}
-              %      ]},
-
-              %% riak_handoff_port is the TCP port that Riak uses for
-              %% intra-cluster data handoff.
-              {handoff_port, {{handoff_port}} }
-             ]},
-
- %% SASL config
- {sasl, [
-         {sasl_error_logger, {file, &quot;log/sasl-error.log&quot;}},
-         {errlog_type, error},
-         {error_logger_mf_dir, &quot;log/sasl&quot;},      % Log directory
-         {error_logger_mf_maxbytes, 10485760},   % 10 MB max file size
-         {error_logger_mf_maxfiles, 5}           % 5 files max
-        ]},
- {diaserver, [
-                {diameter_port, {{diameter_port}} }
-            ]}
-
-].</code></pre></noscript></div>
+<noscript><pre><code></code></pre></noscript></div>
 
 
 <p>I only added the last <em>diaserver</em> tuple. As you see the  is a template parameter. It will be substituted with the value specific for each &#8220;dev&#8221; node. For this purpose we have 3 &#8220;dev&#8221; configuration files in the <em>dev</em> directory. Here is the content of the first one:</p>
@@ -2171,6 +2337,10 @@ What we need to do is to put the start() snippet from the above in the init() fu
   <ul id="recent_posts">
     
       <li class="post">
+        <a href="/blog/2013/03/23/erlang-how-to-create-and-compile-module-in-run-time/">Erlang: How to create and compile module in run-time</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together/">Erlang Real Time Server - Part 3 - Putting Parts Together</a>
       </li>
     
@@ -2184,10 +2354,6 @@ What we need to do is to put the start() snippet from the above in the init() fu
     
       <li class="post">
         <a href="/blog/2012/05/11/erlang-real-time-server-introduction/">Erlang Real Time Server - Introduction</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2012/05/10/the-first-one/">The first one</a>
       </li>
     
   </ul>
@@ -2249,7 +2415,7 @@ What we need to do is to put the start() snippet from the above in the init() fu
     </div>
   </div>
   <footer role="contentinfo"><p>
-  Copyright &copy; 2012 - Vasco Kolarov -
+  Copyright &copy; 2013 - Vasco Kolarov -
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
 
