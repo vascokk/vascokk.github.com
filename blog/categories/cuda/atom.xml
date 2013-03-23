@@ -4,7 +4,7 @@
   <title><![CDATA[Category: CUDA | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/cuda/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-23T22:31:54+00:00</updated>
+  <updated>2013-03-23T22:53:34+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -18,7 +18,9 @@
     <link href="http://vascokk.github.com/blog/2013/03/23/machine-learning-in-erlang-and-cuda/"/>
     <updated>2013-03-23T18:49:00+00:00</updated>
     <id>http://vascokk.github.com/blog/2013/03/23/machine-learning-in-erlang-and-cuda</id>
-    <content type="html"><![CDATA[<p>Since I finished the "Machine Learning" course on Coursera, I wanted to try it in Erlang, Unfortunately Erlang is notorious with its inability to do intensive math calculations. In short - no matrix calculations - no Machine learning. Solution - use C and call C-functions from Erlang. Or better - use the GPU (in C) and call the functions from Erlang. I guess, this approach is no more qualified as "pure Erlang" one, but that is the best we can get. In fact - most of the Python ML libraries, so famous in the ML society, are using NumPy library, which guess what - is written in C (at least - the important part of it).</p>
+    <content type="html"><![CDATA[<p><a href="https://github.com/vascokk/NumEr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a></p>
+
+<p>Since I finished the "Machine Learning" course on Coursera, I wanted to try it in Erlang, Unfortunately Erlang is notorious with its inability to do intensive math calculations. In short - no matrix calculations - no Machine learning. Solution - use C and call C-functions from Erlang. Or better - use the GPU (in C) and call the functions from Erlang. I guess, this approach is no more qualified as "pure Erlang" one, but that is the best we can get. In fact - most of the Python ML libraries, so famous in the ML society, are using NumPy library, which guess what - is written in C (at least - the important part of it).</p>
 
 <p>So, first thing to do was - google "erlang matrix operations cuda gpu"....Almost nothing. Actually, I found two projects - OpenCL bindings for erlang <a href="https://github.com/tonyrog/cl">https://github.com/tonyrog/cl</a> and Kevin Smith's <a href="https://github.com/kevsmith/pteracuda">Pteracuda</a>. I liked the Kevin's approach, as using the Thrust library would hide the pure C boilerplate CUDA code. Also some algorithms are one-liners implemented with Thrust.</p>
 
