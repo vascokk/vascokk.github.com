@@ -4,7 +4,7 @@
   <title><![CDATA[Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-23T22:08:27+00:00</updated>
+  <updated>2013-03-23T22:27:29+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -18,13 +18,13 @@
     <link href="http://vascokk.github.com/blog/2013/03/23/machine-learning-in-erlang-and-cuda/"/>
     <updated>2013-03-23T18:49:00+00:00</updated>
     <id>http://vascokk.github.com/blog/2013/03/23/machine-learning-in-erlang-and-cuda</id>
-    <content type="html"><![CDATA[<p>Since I finished the &#8220;Machine Learning&#8221; course on Coursera, I wanted to try it in Erlang, Unfortunately Erlang is notorious with its inability to do pure math calculations. In short - no matrix calculations - no Machine learning. Solution - use C and call it from Erlang. Or better - use GPU (in C) and call it from Erlang. I guess, this approach is no more qualified as &#8220;Erlang&#8221; one, but that is the best we can get. In fact - most of the Python ML libraries, so famous in the ML society, are using NumPy library, which guess what - is written in C (at least - the important part of it).</p>
+    <content type="html"><![CDATA[<p>Since I finished the &#8220;Machine Learning&#8221; course on Coursera, I wanted to try it in Erlang, Unfortunately Erlang is notorious with its inability to do intensive math calculations. In short - no matrix calculations - no Machine learning. Solution - use C and call C-functions from Erlang. Or better - use the GPU (in C) and call the functions from Erlang. I guess, this approach is no more qualified as &#8220;pure Erlang&#8221; one, but that is the best we can get. In fact - most of the Python ML libraries, so famous in the ML society, are using NumPy library, which guess what - is written in C (at least - the important part of it).</p>
 
-<p>So, first thing to do was - google &#8220;NumEr&#8221;&#8230;.Almost nothing. I found only two projects - OpenCL bindings for erlang <a href="https://github.com/tonyrog/cl">https://github.com/tonyrog/cl</a> and Kevin Smith&#8217;s <a href="https://github.com/kevsmith/pteracuda">Pteracuda</a>. I liked the Kevin&#8217;s approach, as using the Thrust library underneath would hide the pure C boilerplate CUDA code. Also some algorithms with are one-liners in Thrust.</p>
+<p>So, first thing to do was - google &#8220;erlang matrix operations cuda gpu&#8221;&#8230;.Almost nothing. Actually, I found two projects - OpenCL bindings for erlang <a href="https://github.com/tonyrog/cl">https://github.com/tonyrog/cl</a> and Kevin Smith&#8217;s <a href="https://github.com/kevsmith/pteracuda">Pteracuda</a>. I liked the Kevin&#8217;s approach, as using the Thrust library would hide the pure C boilerplate CUDA code. Also some algorithms are one-liners implemented with Thrust.</p>
 
-<p>I forked Pteracuda and added matrix operations (CUBLAS-based), but since it has some parts that I don&#8217;t need (like strings, search, min-max), I decided to create another project and so - the <a href="https://github.com/vascokk/NumEr">NumEr</a> was born :)</p>
+<p>I forked Pteracuda and added matrix operations (CUBLAS-based), but since it had some parts that I didn&#8217;t need (like: strings, search, min/max), I decided to create another project and so - the <a href="https://github.com/vascokk/NumEr">NumEr</a> was born :)</p>
 
-<p>Basically, it is a bunch of Erlang NIF functions for operations on vectors and matrices. Both are natively implemented as Thrust host/device vectors and special &#8220;buffer&#8221; classes are used to transfer them from Erlang to CUDA and back.</p>
+<p>Basically, it is a bunch of Erlang NIF functions for BLAS operations on vectors and matrices. Both are natively implemented as Thrust host/device vectors and special &#8220;buffer&#8221; classes are used to transfer them from Erlang to CUDA and back.</p>
 
 <p>Here is an example:</p>
 
@@ -39,7 +39,7 @@
 <span class='line-number'>9</span>
 <span class='line-number'>10</span>
 <span class='line-number'>11</span>
-</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">% this is a matrix:</span>
+</pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="c">% this is a row-major matrix:</span>
 </span><span class='line'><span class="nv">A</span> <span class="o">=</span> <span class="p">[[</span><span class="mi">4</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">6</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">8</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">2</span><span class="p">.</span><span class="mi">0</span><span class="p">],[</span><span class="mi">5</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">7</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">9</span><span class="p">.</span><span class="mi">0</span><span class="p">,</span><span class="mi">3</span><span class="p">.</span><span class="mi">0</span><span class="p">]].</span>
 </span><span class='line'>
 </span><span class='line'><span class="c">%this is a vector:</span>
@@ -53,9 +53,9 @@
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>As you see one of the parameters in the matrix buffer is ?ROW_MAJOR. It is kinda borrowed from Boost, but not yet fully implemented in NumEr. I mean - currently only row major matrices are supported. However, under the hood in the Thrust vectors the numbers are stored in column major format. I chose to do it in this way, because the CUBLAS library is using column major storage, being a derivative of the FORTRAN BLAS library.</p>
+<p>As you see one of the parameters in the matrix buffer is &#8220;?ROW_MAJOR&#8221;. It is kinda borrowed from Boost library, but not yet fully implemented in NumEr. I mean - currently only row-major matrices are supported. However, under the hood in the Thrust vectors the numbers are stored in column-major format. I chose to do it in this way, because the CUBLAS library is using column-major storage - being a derivative of the FORTRAN BLAS library.</p>
 
-<p>The NIF functions are abstracted in separate modules like, numer_blas - for BLAS operations, numer_buffer - for operations on buffers (new, delete, read, write), etc.</p>
+<p>There are several modules, which are wrappers of the NIF functions like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations on buffers (new, delete, read, write), etc.</p>
 
 <p>Using numer_buffer module, the above example will look like:</p>
 
@@ -72,7 +72,7 @@
 
 <p></p>
 
-<p>Now, the more interesting part - calculations with vectors and matrices. Here is the BLAS GEMC example:</p>
+<p>Now, the more interesting part - calculations with vectors and matrices. Here is the BLAS GEMV example:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -121,7 +121,7 @@
 
 <p>As for the ML part of the whole exercise - there is an implementation of the Logistic Regression (without regularization) algorithm. Take a look at the numer_logreg.erl module.</p>
 
-<p>The numer_ml.erl module contains an all-native implementation of Logistic Regression and numer_logreg - implementation using buffers and NIFs.</p>
+<p>The numer_ml.erl module contains an all-native implementation of Logistic Regression and numer_logreg.erl - implementation using buffers and NIFs. The first one I used to compare the speed between native and &#8220;Erlang&#8221; implementations.</p>
 
 <p>Since using buffer operation can make the implementation awkward, there is also a helper module - numer_helpers.erl, wich can be used for prototyping the algorithms. WARNING - it is extremely slow and suitable ONLY for prototyping. Here is how you can use it:</p>
 
@@ -142,11 +142,11 @@
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>It is much more readable, but at the &#8220;training&#8221; stage (with hundreds of iterations) it will be unusable.</p>
+<p>It is much more readable and useful for one-time calculations, but in the ML &#8220;training&#8221; stage (with hundreds of iterations) it will be unusable, due to the multiple buffer creations and transfers.</p>
 
 <p>The project is still a work in progress and needs a lot of polishing. So, if anyone is willing to give a hand I&#8217;ll be more than happy. Any suggestions to improve the framework are also very welcome.</p>
 
-<p>That&#8217;s all folk! Happy hacking! :-)</p>
+<p>That&#8217;s all folks! Happy hacking! :-)</p>
 ]]></content>
   </entry>
   
