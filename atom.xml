@@ -4,7 +4,7 @@
   <title><![CDATA[Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-23T16:41:16+00:00</updated>
+  <updated>2013-03-23T16:44:09+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -51,29 +51,31 @@ Let&#8217;s first take a look at our simple module. Here we have:</p>
 <ol>
 <li>Module declaration where the name of the module is an Erlang atom (div_test).</li>
 <li>Export clause with a list of arity qualifiers. In our case - only one qualifier, which contains an atom (function name) and an integer (arity)</li>
-<li>Function &#8220;divide&#8221; (again the name is an atom) and two function clauses
-3.1. First clause contains:
-
-<ul>
-<li>two variables A and B</li>
-<li>a guard, which is an infix operation (&#8220;=/=&#8221;) between the variable B and the integer 0.</li>
-<li>a body, which is an infix operation (&#8220;/&#8221;) between two variables A and B
-3.2. Second clause contains:</li>
-<li>two anonymous variables (&#8221;<em>,</em>&#8221;)</li>
-<li>a body, which is a tuple of two atoms - &#8220;error&#8221; and &#8220;division_by_zero&#8221;</li>
-</ul>
-</li>
+<li>Function &#8220;divide&#8221; (again the name is an atom) and two function clauses</li>
 </ol>
 
+
+<p>3.1. First clause contains:</p>
+
+<pre><code>- two variables A and B
+- a guard, which is an infix operation ("=/=") between the variable B and the integer 0.
+- a body, which is an infix operation ("/") between two variables A and B
+</code></pre>
+
+<p>3.2. Second clause contains:</p>
+
+<pre><code>- two anonymous variables ("_,_")
+- a body, which is a tuple of two atoms - "error" and "division_by_zero"
+</code></pre>
 
 <p>Now, we are going to create each of the above, using the functions provided by erl_syntax module:</p>
 
 <ol>
-<li>Module:</li>
+<li>&#8220;module&#8221; attribute:</li>
 </ol>
 
 
-<p>In fact the &#8220;-module(div_test)&#8221; is a module attribute with argument - the name of the module:</p>
+<p>&#8220;-module(div_test)&#8221; is a module attribute with argument - the name of the module:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -85,7 +87,7 @@ Let&#8217;s first take a look at our simple module. Here we have:</p>
 <p>To make the Module AST compatible with the erl_parse trees, which are used by the &#8220;compile&#8221; module (i.e. make a &#8220;Form&#8221; out of the AST), we have to invoke revert().</p>
 
 <ol>
-<li>Export attribute:</li>
+<li>&#8220;export&#8221; attribute:</li>
 </ol>
 
 
@@ -103,7 +105,7 @@ Let&#8217;s first take a look at our simple module. Here we have:</p>
 <p>First we call the function attribute(), i.e. we are going to create a module attribute. The attribute() function has two parameters - name of the attribute (which is an atom) and a list of arguments. In this case the list of arguments has only one element, which is again a list, containing arity qualifiers ( name/arity) of the exported functions. So we have attribute(atom, [Arguments]), where Arguments is &#8220;list([arity_qualifieris])&#8221;. The arity qualifier is an atom and an integer.</p>
 
 <ol>
-<li>Function</li>
+<li>Function:</li>
 </ol>
 
 
