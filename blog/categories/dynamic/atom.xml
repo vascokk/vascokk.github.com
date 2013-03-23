@@ -4,7 +4,7 @@
   <title><![CDATA[Category: dynamic | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/dynamic/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-23T16:37:40+00:00</updated>
+  <updated>2013-03-23T16:41:16+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -30,7 +30,7 @@
 
 <p>divide(A,B) when B =/= 0 -></p>
 
-<pre><code>A/B.
+<pre><code>A/B;
 </code></pre>
 
 <p>divide(<em>,</em>) -></p>
