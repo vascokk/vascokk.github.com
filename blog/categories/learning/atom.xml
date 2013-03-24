@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Learning | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/learning/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-23T23:31:33+00:00</updated>
+  <updated>2013-03-24T00:16:09+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -44,7 +44,7 @@ numer_nifs:write_buffer(Buf_X, X).
 
 <p>As you see one of the parameters in the matrix buffer is "?ROW_MAJOR". It is kinda borrowed from Boost library, but not yet fully implemented in NumEr. I mean - currently only row-major matrices are supported. However, under the hood in the Thrust vectors the numbers are stored in column-major format. I chose to do it in this way, because the CUBLAS library is using column-major storage - being a derivative of the FORTRAN BLAS library.</p>
 
-<p>There are several modules, which are wrappers of the NIF functions like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations on buffers (new, delete, read, write), etc.</p>
+<p>There are several modules, which are wrappers for the NIF functions, like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations on buffers (new, delete, read, write), etc.</p>
 
 <p>Using numer_buffer module, the above example will look like:</p>
 

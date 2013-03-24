@@ -144,7 +144,7 @@
 
 <p>As you see one of the parameters in the matrix buffer is &#8220;?ROW_MAJOR&#8221;. It is kinda borrowed from Boost library, but not yet fully implemented in NumEr. I mean - currently only row-major matrices are supported. However, under the hood in the Thrust vectors the numbers are stored in column-major format. I chose to do it in this way, because the CUBLAS library is using column-major storage - being a derivative of the FORTRAN BLAS library.</p>
 
-<p>There are several modules, which are wrappers of the NIF functions like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations on buffers (new, delete, read, write), etc.</p>
+<p>There are several modules, which are wrappers for the NIF functions, like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations on buffers (new, delete, read, write), etc.</p>
 
 <p>Using numer_buffer module, the above example will look like:</p>
 
