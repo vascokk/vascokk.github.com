@@ -144,7 +144,7 @@
 
 <p>As you see one of the parameters in the matrix buffer is &#8220;?ROW_MAJOR&#8221;. It is kinda borrowed from Boost library, but not yet fully implemented in NumEr. I mean - currently only row-major matrices are supported. However, under the hood in the Thrust vectors the numbers are stored in column-major format. I chose to do it in this way, because the CUBLAS library is using column-major storage - being a derivative of the FORTRAN BLAS library.</p>
 
-<p>There are several modules, which are wrappers for the NIF functions, like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations on buffers (new, delete, read, write), etc.</p>
+<p>There are several modules, which are wrappers for the NIF functions, like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations with buffers (new, delete, read, write), etc.</p>
 
 <p>Using numer_buffer module, the above example will look like:</p>
 
@@ -210,9 +210,9 @@
 
 <p>As for the ML part of the whole exercise - there is an implementation of the Logistic Regression (without regularization) algorithm. Take a look at the numer_logreg.erl module.</p>
 
-<p>The numer_ml.erl module contains an all-native implementation of Logistic Regression and numer_logreg.erl - implementation using buffers and NIFs. The first one I used to compare the speed between native and &#8220;Erlang&#8221; implementations.</p>
+<p>The numer_ml.erl module contains an all-native implementation of Logistic Regression, while the numer_logreg.erl is using buffers and NIFs. The first one I used to compare the speed between native and &#8220;Erlang&#8221; implementations.</p>
 
-<p>Since using buffer operation can make the implementation awkward, there is also a helper module - numer_helpers.erl, wich can be used for prototyping the algorithms. WARNING - it is extremely slow and suitable ONLY for prototyping. Here is how you can use it:</p>
+<p>Since using buffer operations can make the code awkward to read, there is also a helper module - numer_helpers.erl, wich can be used for prototyping the algorithms. WARNING - it is extremely slow and suitable ONLY for prototyping. Here is how you can use it:</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -231,9 +231,9 @@
 </span></code></pre></td></tr></table></div></figure>
 
 
-<p>It is much more readable and useful for one-time calculations, but in the ML &#8220;training&#8221; stage (with hundreds of iterations) it will be unusable, due to the multiple buffer creations and transfers.</p>
+<p>It is much more readable and useful for one-time calculations, but in the ML &#8220;training&#8221; stage (with hundreds of iterations) it will be unusable, due to the multiple buffer transfers.</p>
 
-<p>The project is still a work in progress and needs a lot of polishing. So, if anyone is willing to give a hand I&#8217;ll be more than happy. Any suggestions to improve the framework are also very welcome.</p>
+<p>The project is still a work in progress and needs a lot of polishing and if anyone is willing to give a hand I&#8217;ll be more than happy. Any suggestions to improve the framework are also very welcome.</p>
 
 <p>That&#8217;s all folks! Happy hacking! :-)</p>
 

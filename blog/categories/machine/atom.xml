@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Machine | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/machine/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-24T00:16:09+00:00</updated>
+  <updated>2013-03-24T00:22:00+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -44,7 +44,7 @@ numer_nifs:write_buffer(Buf_X, X).
 
 <p>As you see one of the parameters in the matrix buffer is "?ROW_MAJOR". It is kinda borrowed from Boost library, but not yet fully implemented in NumEr. I mean - currently only row-major matrices are supported. However, under the hood in the Thrust vectors the numbers are stored in column-major format. I chose to do it in this way, because the CUBLAS library is using column-major storage - being a derivative of the FORTRAN BLAS library.</p>
 
-<p>There are several modules, which are wrappers for the NIF functions, like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations on buffers (new, delete, read, write), etc.</p>
+<p>There are several modules, which are wrappers for the NIF functions, like: numer_blas.erl - for BLAS operations, numer_buffer.erl - for operations with buffers (new, delete, read, write), etc.</p>
 
 <p>Using numer_buffer module, the above example will look like:</p>
 
@@ -86,9 +86,9 @@ ok = numer_context:destroy(Ctx).
 
 <p>As for the ML part of the whole exercise - there is an implementation of the Logistic Regression (without regularization) algorithm. Take a look at the numer_logreg.erl module.</p>
 
-<p>The numer_ml.erl module contains an all-native implementation of Logistic Regression and numer_logreg.erl - implementation using buffers and NIFs. The first one I used to compare the speed between native and "Erlang" implementations.</p>
+<p>The numer_ml.erl module contains an all-native implementation of Logistic Regression, while the numer_logreg.erl is using buffers and NIFs. The first one I used to compare the speed between native and "Erlang" implementations.</p>
 
-<p>Since using buffer operation can make the implementation awkward, there is also a helper module - numer_helpers.erl, wich can be used for prototyping the algorithms. WARNING - it is extremely slow and suitable ONLY for prototyping. Here is how you can use it:</p>
+<p>Since using buffer operations can make the code awkward to read, there is also a helper module - numer_helpers.erl, wich can be used for prototyping the algorithms. WARNING - it is extremely slow and suitable ONLY for prototyping. Here is how you can use it:</p>
 
 <p>``` erlang
 gemv_2_test()-></p>
@@ -103,9 +103,9 @@ Res = numer_helpers:gemv(no_transpose , _alpha, A, X, _beta, []),
 
 <p>```</p>
 
-<p>It is much more readable and useful for one-time calculations, but in the ML "training" stage (with hundreds of iterations) it will be unusable, due to the multiple buffer creations and transfers.</p>
+<p>It is much more readable and useful for one-time calculations, but in the ML "training" stage (with hundreds of iterations) it will be unusable, due to the multiple buffer transfers.</p>
 
-<p>The project is still a work in progress and needs a lot of polishing. So, if anyone is willing to give a hand I'll be more than happy. Any suggestions to improve the framework are also very welcome.</p>
+<p>The project is still a work in progress and needs a lot of polishing and if anyone is willing to give a hand I'll be more than happy. Any suggestions to improve the framework are also very welcome.</p>
 
 <p>That's all folks! Happy hacking! :-)</p>
 
