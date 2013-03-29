@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Erang | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/erang/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-24T00:22:00+00:00</updated>
+  <updated>2013-03-29T22:36:54+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -185,12 +185,8 @@ erlang-rts-part-2/rel/aggregation $ ./dev/dev1/bin/aggregation console</p>
 Root: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1
 Erlang R14B03 (erts-5.8.4) [source] [rq:1] [async-threads:5] [hipe] [kernel-poll:true]</p>
 
-<p>=INFO REPORT==== 21-Jun-2012::21:44:19 ===</p>
-
-<pre><code>alarm_handler: {set,{{disk_almost_full,"/"},[]}}
-</code></pre>
-
-<p>** Found 0 name clashes in code paths
+<p>=INFO REPORT==== 21-Jun-2012::21:44:19 ===
+** Found 0 name clashes in code paths
 21:44:20.142 [info] Application lager started on node 'aggregation1@127.0.0.1'
 21:44:20.236 [warning] No ring file available.
 21:44:20.237 [info] Application riak_core started on node 'aggregation1@127.0.0.1'

@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Diameter | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/diameter/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-24T00:22:00+00:00</updated>
+  <updated>2013-03-29T22:36:54+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -188,9 +188,11 @@ Writing ./vars/dev3.config</p>
 
 <p>For the <em>app.config</em> we need to configure the TCP port on which diaserver will listen.</p>
 
-<p>{% gist 3146816 %}</p>
+<p><div><script src='https://gist.github.com/3146816.js'></script>
+<noscript><pre><code></code></pre></noscript></div>
+</p>
 
-<p>I only added the last <em>diaserver</em> tuple. As you see the {{diameter_port}} is a template parameter. It will be substituted with the value specific for each "dev" node. For this purpose we have 3 "dev" configuration files in the <em>dev</em> directory. Here is the content of the first one:</p>
+<p>I only added the last <em>diaserver</em> tuple. As you see the  is a template parameter. It will be substituted with the value specific for each "dev" node. For this purpose we have 3 "dev" configuration files in the <em>dev</em> directory. Here is the content of the first one:</p>
 
 <p>``` bash
 %%
@@ -578,12 +580,8 @@ erlang-rts-part-2/rel/aggregation $ ./dev/dev1/bin/aggregation console</p>
 Root: /home/vasco/w/dia-test/erlang-rts-part-2/rel/aggregation/dev/dev1
 Erlang R14B03 (erts-5.8.4) [source] [rq:1] [async-threads:5] [hipe] [kernel-poll:true]</p>
 
-<p>=INFO REPORT==== 21-Jun-2012::21:44:19 ===</p>
-
-<pre><code>alarm_handler: {set,{{disk_almost_full,"/"},[]}}
-</code></pre>
-
-<p>** Found 0 name clashes in code paths
+<p>=INFO REPORT==== 21-Jun-2012::21:44:19 ===
+** Found 0 name clashes in code paths
 21:44:20.142 [info] Application lager started on node 'aggregation1@127.0.0.1'
 21:44:20.236 [warning] No ring file available.
 21:44:20.237 [info] Application riak_core started on node 'aggregation1@127.0.0.1'
@@ -1312,9 +1310,7 @@ ok
 
 <p>This is the second attempt to start a blog. This time my intention is to create a 'working blog'. Here I will write about the new stuff I'm learning in programming and the reason to start this is because trying to explain something is the best way to learn. To quote <a href="http://blogs.msdn.com/b/ericlippert/">Eric Lippert</a>:</p>
 
-<p>{%blockquote%}
-Writing a blog is also tremendously helpful; by requiring me to explain complex topics to other people, I am forced to confront my own inadequate understanding of various topics all the time.
-{%endblockquote%}</p>
+<p><blockquote><p>Writing a blog is also tremendously helpful; by requiring me to explain complex topics to other people, I am forced to confront my own inadequate understanding of various topics all the time.</p></blockquote></p>
 ]]></content>
   </entry>
   

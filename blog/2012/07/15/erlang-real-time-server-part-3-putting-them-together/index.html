@@ -21,10 +21,11 @@
   <link rel="canonical" href="http://vascokk.github.com/blog/2012/07/15/erlang-real-time-server-part-3-putting-them-together">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
-  <script src="/javascripts/modernizr-2.0.js"></script>
-  <script src="/javascripts/ender.js"></script>
-  <script src="/javascripts/octopress.js" type="text/javascript"></script>
   <link href="/atom.xml" rel="alternate" title="Reinventing The Wheel" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/lib/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
   <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
 <link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
 <link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
@@ -128,10 +129,10 @@
 <span class='line-number'>4</span>
 <span class='line-number'>5</span>
 </pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">accounting</span><span class="p">(</span><span class="nv">Req</span><span class="p">)</span> <span class="o">-&gt;</span>
-</span><span class='line'>    <span class="nv">DocIdx</span> <span class="o">=</span> <span class="nn">riak_core_util</span><span class="p">:</span><span class="n">chash_key</span><span class="p">({</span><span class="o">&lt;&lt;</span><span class="s">&quot;accounting&quot;</span><span class="o">&gt;&gt;</span><span class="p">,</span> <span class="nb">term_to_binary</span><span class="p">(</span><span class="n">now</span><span class="p">())}),</span>
-</span><span class='line'>    <span class="nv">PrefList</span> <span class="o">=</span> <span class="nn">riak_core_apl</span><span class="p">:</span><span class="n">get_primary_apl</span><span class="p">(</span><span class="nv">DocIdx</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">aggregation</span><span class="p">),</span>
+</span><span class='line'>    <span class="nv">DocIdx</span> <span class="o">=</span> <span class="nn">riak_core_util</span><span class="p">:</span><span class="nf">chash_key</span><span class="p">({</span><span class="o">&lt;&lt;</span><span class="s">&quot;accounting&quot;</span><span class="o">&gt;&gt;</span><span class="p">,</span> <span class="nb">term_to_binary</span><span class="p">(</span><span class="n">now</span><span class="p">())}),</span>
+</span><span class='line'>    <span class="nv">PrefList</span> <span class="o">=</span> <span class="nn">riak_core_apl</span><span class="p">:</span><span class="nf">get_primary_apl</span><span class="p">(</span><span class="nv">DocIdx</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">aggregation</span><span class="p">),</span>
 </span><span class='line'>    <span class="p">[{</span><span class="nv">IndexNode</span><span class="p">,</span> <span class="p">_</span><span class="nv">Type</span><span class="p">}]</span> <span class="o">=</span> <span class="nv">PrefList</span><span class="p">,</span>
-</span><span class='line'>    <span class="nn">riak_core_vnode_master</span><span class="p">:</span><span class="n">sync_spawn_command</span><span class="p">(</span><span class="nv">IndexNode</span><span class="p">,</span> <span class="p">{</span><span class="n">accounting</span><span class="p">,</span> <span class="nv">Req</span><span class="p">},</span> <span class="n">aggregation_vnode_master</span><span class="p">).</span>
+</span><span class='line'>    <span class="nn">riak_core_vnode_master</span><span class="p">:</span><span class="nf">sync_spawn_command</span><span class="p">(</span><span class="nv">IndexNode</span><span class="p">,</span> <span class="p">{</span><span class="n">accounting</span><span class="p">,</span> <span class="nv">Req</span><span class="p">},</span> <span class="n">aggregation_vnode_master</span><span class="p">).</span>
 </span></code></pre></td></tr></table></div></figure>
 
 
@@ -148,7 +149,7 @@
 </pre></td><td class='code'><pre><code class='erlang'><span class='line'><span class="nf">handle_command</span><span class="p">({</span><span class="n">accounting</span><span class="p">,</span> <span class="nv">Req</span><span class="p">},</span> <span class="p">_</span><span class="nv">Sender</span><span class="p">,</span> <span class="nv">State</span><span class="p">)</span> <span class="o">-&gt;</span>
 </span><span class='line'>    <span class="c">%%TODO Process accounting request</span>
 </span><span class='line'>    <span class="nv">Req</span><span class="p">,</span>
-</span><span class='line'>    <span class="nv">ResponseCode</span> <span class="o">=</span> <span class="no">?&#39;DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="nv">ResponseCode</span> <span class="o">=</span> <span class="o">?</span><span class="n">&#39;DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS&#39;</span><span class="p">,</span>
 </span><span class='line'>
 </span><span class='line'>    <span class="p">{</span><span class="n">reply</span><span class="p">,</span> <span class="nv">ResponseCode</span><span class="p">,</span> <span class="nv">State</span><span class="p">};</span>
 </span></code></pre></td></tr></table></div></figure>
@@ -196,7 +197,7 @@
 </span><span class='line'>                           <span class="n">&#39;Acct-Application-Id&#39;</span> <span class="o">=</span> <span class="nv">AccAppId</span> <span class="p">}</span>
 </span><span class='line'>            <span class="o">=</span> <span class="nv">Req</span><span class="p">,</span>
 </span><span class='line'>
-</span><span class='line'>        <span class="nv">ResultCode</span> <span class="o">=</span> <span class="nn">aggregation</span><span class="p">:</span><span class="n">accounting</span><span class="p">(</span><span class="nv">Req</span><span class="p">),</span>
+</span><span class='line'>        <span class="nv">ResultCode</span> <span class="o">=</span> <span class="nn">aggregation</span><span class="p">:</span><span class="nf">accounting</span><span class="p">(</span><span class="nv">Req</span><span class="p">),</span>
 </span><span class='line'>
 </span><span class='line'>        <span class="nv">Ans</span> <span class="o">=</span> <span class="nl">#diameter_base_ACA</span><span class="p">{</span><span class="n">&#39;Result-Code&#39;</span> <span class="o">=</span> <span class="nv">ResultCode</span><span class="p">,</span> <span class="c">%%?&#39;DIAMETER_BASE_RESULT-CODE_DIAMETER_SUCCESS&#39;,</span>
 </span><span class='line'>                       <span class="n">&#39;Origin-Host&#39;</span> <span class="o">=</span> <span class="nv">OH</span><span class="p">,</span>
@@ -356,7 +357,7 @@
 
 <p>For the <em>app.config</em> we need to configure the TCP port on which diaserver will listen.</p>
 
-<div><script src='https://gist.github.com/3146816.js?file='></script>
+<div><script src='https://gist.github.com/3146816.js'></script>
 <noscript><pre><code></code></pre></noscript></div>
 
 
@@ -798,7 +799,7 @@
   <a href="https://github.com/vascokk">@vascokk</a> on GitHub
   
   <script type="text/javascript">
-    $.domReady(function(){
+    $(document).ready(function(){
         if (!window.jXHR){
             var jxhr = document.createElement('script');
             jxhr.type = 'text/javascript';
@@ -875,7 +876,7 @@
 <script>(function(d, s, id) {
   var js, fjs = d.getElementsByTagName(s)[0];
   if (d.getElementById(id)) {return;}
-  js = d.createElement(s); js.id = id;
+  js = d.createElement(s); js.id = id; js.async = true;
   js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
   fjs.parentNode.insertBefore(js, fjs);
 }(document, 'script', 'facebook-jssdk'));</script>
