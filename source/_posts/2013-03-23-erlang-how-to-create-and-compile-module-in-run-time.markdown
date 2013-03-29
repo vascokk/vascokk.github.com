@@ -18,7 +18,7 @@ Let say we want to create the following module dynamically:
 -export([divide/2]).
 
 divide(A,B) when B =/= 0 ->
-	A/B.
+	A/B;
 divide(_,_) -> 
 	{error, division_by_zero}.
 
@@ -32,10 +32,12 @@ Let's first take a look at our simple module. Here we have:
 1. Module declaration where the name of the module is an Erlang atom (div\_test).
 2. Export clause with a list of arity qualifiers. In our case - only one qualifier, which contains an atom (function name) and an integer (arity)
 3. Function "divide" (again the name is an atom) and two function clauses
+
 3.1. First clause contains:
 	- two variables A and B
 	- a guard, which is an infix operation ("=/=") between the variable B and the integer 0.
 	- a body, which is an infix operation ("/") between two variables A and B
+
 3.2. Second clause contains:
 	- two anonymous variables ("_,_")
 	- a body, which is a tuple of two atoms - "error" and "division_by_zero"
@@ -44,9 +46,9 @@ Let's first take a look at our simple module. Here we have:
 Now, we are going to create each of the above, using the functions provided by erl\_syntax module:
 
 
-1. Module:
+1. "module" attribute:
 
-In fact the "-module(div\_test)" is a module attribute with argument - the name of the module:
+"-module(div\_test)" is a module attribute with argument - the name of the module:
  
 ``` erlang 
 Module = erl_syntax:attribute(erl_syntax:atom(module),[erl_syntax:atom(div_test)]).
@@ -55,7 +57,7 @@ ModForm =  erl_syntax:revert(Module).
 
 To make the Module AST compatible with the erl\_parse trees, which are used by the "compile" module (i.e. make a "Form" out of the AST), we have to invoke revert().
 
-2. Export attribute:
+2. "export" attribute:
 
 It is a bit tricky... I would happily use just the line: ExportForm = {attribute,2,export,[{divide,2}]}, but for the sake of completeness, let's go deeper:
 
@@ -64,11 +66,11 @@ Export = erl_syntax:attribute(erl_syntax:atom(export),[erl_syntax:list([erl_synt
 ExportForm = erl_syntax:revert(Export).
 ```
 
-Scary at the first sight, isn't it? In fact, it is quite straightforward:
+Scary at a first sight, isn't it? In fact, it is quite straightforward:
 
-First we call the function attribute(), i.e. we are going to create a module attribute. The attribute() function has two parameters - name of the attribute (which is an atom) and a list of arguments. In this case the list of arguments has only one element, which is again a list, containing arity qualifiers ( name/arity) of the exported functions. So we have attribute(atom, [Arguments]), where Arguments is "list([arity_qualifieris])". The arity qualifier is an atom and an integer.
+First we are going to create an attribute. The attribute() function has two parameters - name of the attribute (which is an atom - "export") and a list of arguments. In this case the list of arguments has only one element, which is again - a list, containing arity qualifiers (pairs "name/arity") of the exported functions. So we have a call to attribute(atom, [Arguments]), where Arguments is "list([arity_qualifieris])". The arity qualifier is an atom and an integer.
 
-2. Function
+2. Function:
 
 If you grapsed the above, the function definition will be quite easy to understand:
 

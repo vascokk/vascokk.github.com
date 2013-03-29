@@ -4,7 +4,7 @@
   <title><![CDATA[Category: Erlang | Reinventing The Wheel]]></title>
   <link href="http://vascokk.github.com/blog/categories/erlang/atom.xml" rel="self"/>
   <link href="http://vascokk.github.com/"/>
-  <updated>2013-03-23T16:37:40+00:00</updated>
+  <updated>2013-03-24T00:22:00+00:00</updated>
   <id>http://vascokk.github.com/</id>
   <author>
     <name><![CDATA[Vasco Kolarov]]></name>
@@ -30,7 +30,7 @@
 
 <p>divide(A,B) when B =/= 0 -></p>
 
-<pre><code>A/B.
+<pre><code>A/B;
 </code></pre>
 
 <p>divide(<em>,</em>) -></p>
@@ -48,29 +48,31 @@ Let's first take a look at our simple module. Here we have:</p>
 <ol>
 <li>Module declaration where the name of the module is an Erlang atom (div_test).</li>
 <li>Export clause with a list of arity qualifiers. In our case - only one qualifier, which contains an atom (function name) and an integer (arity)</li>
-<li>Function "divide" (again the name is an atom) and two function clauses
-3.1. First clause contains:
-
-<ul>
-<li>two variables A and B</li>
-<li>a guard, which is an infix operation ("=/=") between the variable B and the integer 0.</li>
-<li>a body, which is an infix operation ("/") between two variables A and B
-3.2. Second clause contains:</li>
-<li>two anonymous variables ("<em>,</em>")</li>
-<li>a body, which is a tuple of two atoms - "error" and "division_by_zero"</li>
-</ul>
-</li>
+<li>Function "divide" (again the name is an atom) and two function clauses</li>
 </ol>
 
+
+<p>3.1. First clause contains:</p>
+
+<pre><code>- two variables A and B
+- a guard, which is an infix operation ("=/=") between the variable B and the integer 0.
+- a body, which is an infix operation ("/") between two variables A and B
+</code></pre>
+
+<p>3.2. Second clause contains:</p>
+
+<pre><code>- two anonymous variables ("_,_")
+- a body, which is a tuple of two atoms - "error" and "division_by_zero"
+</code></pre>
 
 <p>Now, we are going to create each of the above, using the functions provided by erl_syntax module:</p>
 
 <ol>
-<li>Module:</li>
+<li>"module" attribute:</li>
 </ol>
 
 
-<p>In fact the "-module(div_test)" is a module attribute with argument - the name of the module:</p>
+<p>"-module(div_test)" is a module attribute with argument - the name of the module:</p>
 
 <p><code>erlang
 Module = erl_syntax:attribute(erl_syntax:atom(module),[erl_syntax:atom(div_test)]).
@@ -80,7 +82,7 @@ ModForm =  erl_syntax:revert(Module).
 <p>To make the Module AST compatible with the erl_parse trees, which are used by the "compile" module (i.e. make a "Form" out of the AST), we have to invoke revert().</p>
 
 <ol>
-<li>Export attribute:</li>
+<li>"export" attribute:</li>
 </ol>
 
 
@@ -91,12 +93,12 @@ Export = erl_syntax:attribute(erl_syntax:atom(export),[erl_syntax:list([erl_synt
 ExportForm = erl_syntax:revert(Export).
 </code></p>
 
-<p>Scary at the first sight, isn't it? In fact, it is quite straightforward:</p>
+<p>Scary at a first sight, isn't it? In fact, it is quite straightforward:</p>
 
-<p>First we call the function attribute(), i.e. we are going to create a module attribute. The attribute() function has two parameters - name of the attribute (which is an atom) and a list of arguments. In this case the list of arguments has only one element, which is again a list, containing arity qualifiers ( name/arity) of the exported functions. So we have attribute(atom, [Arguments]), where Arguments is "list([arity_qualifieris])". The arity qualifier is an atom and an integer.</p>
+<p>First we are going to create an attribute. The attribute() function has two parameters - name of the attribute (which is an atom - "export") and a list of arguments. In this case the list of arguments has only one element, which is again - a list, containing arity qualifiers (pairs "name/arity") of the exported functions. So we have a call to attribute(atom, [Arguments]), where Arguments is "list([arity_qualifieris])". The arity qualifier is an atom and an integer.</p>
 
 <ol>
-<li>Function</li>
+<li>Function:</li>
 </ol>
 
 
@@ -1203,7 +1205,7 @@ ok
 
 <p>The second part, which is even more interesting - the Aggregation - is the place where all the calculations will be done. For example - if you want to watch a film on demand or make a voice/video call the system has to check whether you have enough money on your balance and will grant or not access to the service - that's the 'authorization' part. After the end of the call it will calculate the amount to deduct from your balance, depending on the time you spent talking and the destination (local or international call, etc.). That's the 'accounting' part. Since there can be between hunderds and millions (if you are someone like AT&amp;T :-)  ) of subscribers, simultaneously using your services, the system has to be scalable. By 'scalable' I mean - painlessly adding a new Aggregation module with a minimum effort. It looks like Riak would fit this purpose perfectly.</p>
 
-<p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert's <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, as my expirience in Erlang, Diameter and Riak is relatively small, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
+<p>A note to the readers - this is not a tutorial for beginners and some initial knowledge in Erlang will be required. I highly recommend Frederic Trottier-Hebert's <a href="http://learnyousomeerlang.com">Learn You Some Erlang</a>. Also, I strongly recommend any of the following publications to be used only for educational purposes and strictly not in prodution.</p>
 
 <p>Now, let's go to the first part of our <a href="http://vas.io/blog/2012/05/13/erlang-real-time-server-part-1-diameter-server/">"Erlang RTS" project</a></p>
 ]]></content>
@@ -1221,8 +1223,6 @@ ok
 <p>This is the second attempt to start a blog. This time my intention is to create a 'working blog'. Here I will write about the new stuff I'm learning in programming and the reason to start this is because trying to explain something is the best way to learn. To quote <a href="http://blogs.msdn.com/b/ericlippert/">Eric Lippert</a>:</p>
 
 <p><blockquote><p>Writing a blog is also tremendously helpful; by requiring me to explain complex topics to other people, I am forced to confront my own inadequate understanding of various topics all the time.</p></blockquote></p>
-
-<p>So, for me it will be just a learning tool. If someone else finds it useful - that would be a bonus.</p>
 ]]></content>
   </entry>
   

@@ -17,6 +17,5 @@ This is the second attempt to start a blog. This time my intention is to create 
 Writing a blog is also tremendously helpful; by requiring me to explain complex topics to other people, I am forced to confront my own inadequate understanding of various topics all the time.
 {%endblockquote%}
 
-So, for me it will be just a learning tool. If someone else finds it useful - that would be a bonus. 
 
 
