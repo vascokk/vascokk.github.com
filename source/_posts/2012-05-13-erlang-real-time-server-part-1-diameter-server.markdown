@@ -133,7 +133,7 @@ Writing src/diameter_srv.erl
 ```
 
 This will create a file named diameter_srv.erl in the ...apps/diaserver/src. 
-Again, gen_server template here is a modified (read: "renamed and the names inside the template changed") version of finapp.template you git-cloned earlier.
+Again, gen_server template here is a modified (read: "renamed and the names inside the template changed") version of finsrv.template you git-cloned earlier.
 Here is what the file should look like:
 
 ``` erlang diameter_srv.erl
