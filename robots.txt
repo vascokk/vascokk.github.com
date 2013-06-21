@@ -1,4 +1,2 @@
 User-agent: *
-Disallow: 
-
-Sitemap: http://vascokk.github.com/sitemap.xml 
+Allow: /
