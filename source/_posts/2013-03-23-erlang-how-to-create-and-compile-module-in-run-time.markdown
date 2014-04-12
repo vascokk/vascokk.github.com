@@ -80,7 +80,7 @@ Var1 = erl_syntax:variable("A").
 Var2 = erl_syntax:variable("B").
 
 % define the Guard
-Guard1 = erl_syntax:infix_expr(Var1, erl_syntax:operator("=/="), erl_syntax:integer(0)).
+Guard1 = erl_syntax:infix_expr(Var2, erl_syntax:operator("=/="), erl_syntax:integer(0)).
 
 % define the function body
 Body1 = erl_syntax:infix_expr(Var1, erl_syntax:operator("/"), Var2).
