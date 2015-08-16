@@ -38,6 +38,91 @@ In simple words, an AST is a structure representing your custom language source 
 
 Yes, the first one is caled "interpretation", and the second is "compilation", respectively your "Tree Parser" is either interpreter or compiler.
 
+## Example DSL
+
+Let say we want to create a DSL for arithmetic calculation with addition to some statistical functions, e.g.:
+```
+(3 + 5) * 12;
+```
+```
+std(2,4,3,5,6,7,4,4,2,1);
+```
+```
+mean(2,4,3,5,6,7,4,4,2,1)
+```
+For simplicity, the calculator will operate with integer numbers only.
+
+## The tokenizer 
+The building blocks of our DSL will be:
+- digits: 0-9,
+- operators: +, -, *, /,
+- brackets: (),
+- intervals (whitespaces),
+- reserved words: sum, mean, std
+
+A _leex_ definition file has a specific format:
+
+```
+<Header>
+
+Definitions.
+
+<Macro Definitions>
+
+Rules.
+
+<Token Rules>
+
+Erlang code.
+
+<Erlang code>
+```
+The mandatory parts are _Definitions_, _Rules_ and _Erlang code_.
+_Definitions_ describes the allowed characters - the "alphabet".
+_Rules_ - set of rules to build larger primitives, e.g.: reserved words.
+_Erlang code_ - defines erlang functions, which can be used in _Definitions_ and _Rules_
+
+Here is the file for our calculator:
+
+``` erlang
+Definitions.
+
+D = [0-9]
+L = [a-z]
+WS = \s
+
+Rules.
+
+{D}+ : {token,{number,TokenLine,list_to_integer(TokenChars)}}.
+{L}+ : Function = list_to_atom(TokenChars),
+			{token,case reserved_word(Function) of
+				   true -> case Function of
+					       'end' -> {end_token,{'end',TokenLine}};
+					       _ -> {Function, TokenLine}
+					   end;
+				   false -> {function,TokenLine,Function}
+			       end}.
+
+
+\+		:	{token,{'+',TokenLine}}.
+\-		:	{token,{'-',TokenLine}}.
+\*		:	{token,{'*',TokenLine}}.
+\/		:	{token,{'/',TokenLine}}.
+\(		:	{token,{'(',TokenLine}}.
+\)		:	{token,{')',TokenLine}}.
+{WS}+		:	skip_token.
+\;		:	{end_token,{semicolon,TokenLine}}.
+
+Erlang code.
+
+-export([reserved_word/1]).
+
+reserved_word('sum') -> true;
+reserved_word('std') -> true;
+reserved_word('mean') -> true.
+```
+
+
 
 
 
