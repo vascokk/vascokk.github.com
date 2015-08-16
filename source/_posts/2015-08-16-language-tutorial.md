@@ -79,7 +79,7 @@ Erlang code.
 ```
 The mandatory parts are _Definitions_, _Rules_ and _Erlang code_.
 _Definitions_ describes the allowed characters - the "alphabet".
-_Rules_ - set of rules to build larger primitives, e.g.: reserved words.
+_Rules_ - set of regular expressions to match larger primitives (e.g. reserved words) and escape sequences.
 _Erlang code_ - defines erlang functions, which can be used in _Definitions_ and _Rules_
 
 Here is the file for our calculator:
@@ -87,13 +87,21 @@ Here is the file for our calculator:
 ``` erlang
 Definitions.
 
+%digits
 D = [0-9]
+
+%lower-case letters
 L = [a-z]
-WS = \s
+
+%whitespace
+WS = \s    
 
 Rules.
 
+%integer numbers
 {D}+ : {token,{number,TokenLine,list_to_integer(TokenChars)}}.
+
+%functions(e.g. "sum", "mean", etc.)
 {L}+ : Function = list_to_atom(TokenChars),
 			{token,case reserved_word(Function) of
 				   true -> case Function of
@@ -103,25 +111,31 @@ Rules.
 				   false -> {function,TokenLine,Function}
 			       end}.
 
-
+%operators
 \+		:	{token,{'+',TokenLine}}.
 \-		:	{token,{'-',TokenLine}}.
 \*		:	{token,{'*',TokenLine}}.
 \/		:	{token,{'/',TokenLine}}.
+
+%brackets
 \(		:	{token,{'(',TokenLine}}.
 \)		:	{token,{')',TokenLine}}.
+
+%whitespaces
 {WS}+		:	skip_token.
+
+%terminal simbol
 \;		:	{end_token,{semicolon,TokenLine}}.
 
 Erlang code.
-
 -export([reserved_word/1]).
-
 reserved_word('sum') -> true;
 reserved_word('std') -> true;
 reserved_word('mean') -> true.
 ```
 
+The characters allowed in our DSL code are:
+- digits
 
 
 
